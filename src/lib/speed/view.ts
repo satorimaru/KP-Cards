@@ -3,6 +3,7 @@ import { remainingOf } from "./engine";
 import { sortSpeedHand } from "./ranks";
 import {
   SPEED_DEAL,
+  SPEED_HAND,
   SPEED_REVEAL_AT,
   SPEED_SORT_MS,
   type SpeedState,
@@ -26,6 +27,7 @@ export interface SpeedView {
   status: SpeedStatus;
   you: 0 | 1;
   hand: Card[];
+  pile: Card[];
   pileCount: number;
   sortUntil: number;
   next: boolean;
@@ -47,6 +49,7 @@ export function toSpeedView(
     status: state.status,
     you,
     hand: me.hand,
+    pile: me.pile,
     pileCount: me.pile.length,
     sortUntil: me.sortUntil,
     next: me.next,
@@ -89,6 +92,18 @@ export function optimisticPlay(
     piles,
     status: leftover === 0 ? "finished" : view.status,
     winnerSeat: leftover === 0 ? view.you : view.winnerSeat,
+  };
+}
+
+export function optimisticDraw(view: SpeedView): SpeedView {
+  if (view.hand.length >= SPEED_HAND || view.pile.length === 0) return view;
+  const [drawn, ...rest] = view.pile;
+  return {
+    ...view,
+    hand: [...view.hand, drawn],
+    pile: rest,
+    pileCount: rest.length,
+    next: false,
   };
 }
 

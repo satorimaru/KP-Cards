@@ -11,6 +11,7 @@ import {
 } from "@/lib/speed/rooms/client";
 import type { SpeedRoomView } from "@/lib/speed/rooms/types";
 import {
+  optimisticDraw,
   optimisticNext,
   optimisticPlay,
   optimisticSort,
@@ -245,7 +246,13 @@ export function SpeedMultiplayer({
           );
         }}
         onDraw={() => {
-          void run(() => postSpeedRoom(roomId, { action: "draw", playerId }));
+          void act(
+            (current) =>
+              current.view
+                ? { ...current, view: optimisticDraw(current.view) }
+                : current,
+            () => postSpeedRoom(roomId, { action: "draw", playerId }),
+          );
         }}
         onSort={() => {
           void act(

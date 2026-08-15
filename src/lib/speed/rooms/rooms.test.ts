@@ -27,6 +27,9 @@ describe("speed rooms", () => {
     expect(hostView.view?.hand).not.toEqual(guestView.view?.hand);
     expect(hostView.view?.opponent.showCount).toBe(false);
     expect(hostView.view?.opponent.remaining).toBe(20);
+    expect(hostView.view?.pile).toEqual(started.state.players[0].pile);
+    expect(guestView.view?.pile).toEqual(started.state.players[1].pile);
+    expect(hostView.view?.pile).not.toEqual(guestView.view?.pile);
   });
 
   it("accepts a legal play and rejects a full-hand draw", async () => {

@@ -13,7 +13,7 @@ import {
   sortHand,
 } from "./engine";
 import { SPEED_DEAL, SPEED_HAND, SPEED_SORT_MS, SPEED_STOCK } from "./types";
-import { optimisticPlay, toSpeedView } from "./view";
+import { optimisticDraw, optimisticPlay, toSpeedView } from "./view";
 import type { Card } from "@/lib/tienlen/types";
 import type { SpeedState } from "./types";
 
@@ -162,6 +162,17 @@ describe("speed play", () => {
     expect(view.piles[1].live).toEqual(c("K", "S"));
     expect(view.hand).toHaveLength(3);
     expect(view.next).toBe(false);
+  });
+
+  it("paints a draw from the personal pile immediately", () => {
+    const state = playingAt([c("7", "H"), c("K", "S")], [
+      [c("8", "C"), c("4", "D")],
+      [c("5", "S")],
+    ]);
+    const view = optimisticDraw(toSpeedView(state, 0));
+    expect(view.hand).toHaveLength(3);
+    expect(view.hand[2]).toEqual(c("J", "C"));
+    expect(view.pileCount).toBe(1);
   });
 
   it("rejects a card that is not adjacent", () => {
