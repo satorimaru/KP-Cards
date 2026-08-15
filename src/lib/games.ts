@@ -1,6 +1,6 @@
 import type { MessageKey } from "./i18n";
 
-export type GameId = "tienlen" | "speed";
+export type GameId = "tienlen" | "speed" | "holdem" | "blackjack";
 
 export type GameStatus = "live" | "soon";
 
@@ -29,6 +29,22 @@ export const GAMES: GameInfo[] = [
     title: "catalog.speed",
     tag: "catalog.speedTag",
     blurb: "catalog.speedBlurb",
+  },
+  {
+    id: "holdem",
+    href: "/holdem",
+    status: "live",
+    title: "catalog.holdem",
+    tag: "catalog.holdemTag",
+    blurb: "catalog.holdemBlurb",
+  },
+  {
+    id: "blackjack",
+    href: "/blackjack",
+    status: "live",
+    title: "catalog.blackjack",
+    tag: "catalog.blackjackTag",
+    blurb: "catalog.blackjackBlurb",
   },
 ];
 

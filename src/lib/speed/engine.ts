@@ -240,7 +240,6 @@ export function signalNext(
 ): SpeedResult {
   const playerOrErr = requireLive(state, seat, now);
   if ("error" in playerOrErr) return playerOrErr;
-  if (hasLegalPlay(state, seat)) return fail("err.havePlay");
   if (playerOrErr.next) return fail("err.alreadyNext");
   let next = withPlayer(state, seat, { ...playerOrErr, next: true });
   if (next.players[0].next && next.players[1].next) {

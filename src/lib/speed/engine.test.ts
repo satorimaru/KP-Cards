@@ -240,13 +240,22 @@ describe("speed draw", () => {
 });
 
 describe("speed next and recycle", () => {
-  it("rejects next when a play exists", () => {
+  it("lets a player next even with a play, then un-next by playing", () => {
     const state = playingAt([c("7", "H"), c("K", "S")], [
       [c("8", "C"), c("4", "D"), c("A", "H"), c("2", "C")],
       [c("5", "S"), c("9", "C"), c("10", "D"), c("J", "H")],
     ]);
     expect(hasLegalPlay(state, 0)).toBe(true);
-    expect(signalNext(state, 0)).toEqual({ ok: false, error: "err.havePlay" });
+    const stuck = signalNext(state, 0);
+    expect(stuck.ok).toBe(true);
+    if (!stuck.ok) return;
+    expect(stuck.state.players[0].next).toBe(true);
+    expect(stuck.state.piles[0].live).toEqual(c("7", "H"));
+    const played = playCard(stuck.state, 0, c("8", "C"), 0);
+    expect(played.ok).toBe(true);
+    if (!played.ok) return;
+    expect(played.state.players[0].next).toBe(false);
+    expect(played.state.piles[0].live).toEqual(c("8", "C"));
   });
 
   it("flips two new lives only when both players are next", () => {

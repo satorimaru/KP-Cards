@@ -71,6 +71,28 @@ button:disabled {
     inset 0 0 48px rgba(0, 0, 0, 0.35);
 }
 
+.dealer-puck {
+  display: flex;
+  height: 2.7rem;
+  width: 2.7rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 2px solid #f0ddb0;
+  background:
+    radial-gradient(circle at 32% 28%, #fffaf0 0%, #f3e6c6 52%, #d8c08a 100%);
+  box-shadow:
+    0 1px 0 #f7edd4,
+    0 3px 0 #9a804c,
+    0 8px 14px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  color: #2a2110;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
 .field {
   width: 100%;
   border-radius: 14px;

@@ -38,7 +38,6 @@ export type SpeedError =
   | "err.noLive"
   | "err.handFull"
   | "err.pileEmpty"
-  | "err.havePlay"
   | "err.alreadyNext"
   | "err.seat";
 

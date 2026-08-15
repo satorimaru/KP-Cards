@@ -13,6 +13,34 @@ function TileMark({ id }: { id: GameInfo["id"] }) {
       </span>
     );
   }
+  if (id === "holdem") {
+    return (
+      <span className="relative mr-1 inline-block h-11 w-11 shrink-0" aria-hidden>
+        <span className="absolute top-1 left-0 flex h-9 w-6 rotate-[-12deg] flex-col items-center justify-center rounded-sm bg-[#f8f4ea] text-[#c41e3a] shadow">
+          <span className="text-[9px] font-bold leading-none">A</span>
+          <span className="text-[10px] leading-none">♠</span>
+        </span>
+        <span className="absolute top-0 left-4 flex h-9 w-6 rotate-[14deg] flex-col items-center justify-center rounded-sm bg-[#f8f4ea] text-[#c41e3a] shadow">
+          <span className="text-[9px] font-bold leading-none">K</span>
+          <span className="text-[10px] leading-none">♥</span>
+        </span>
+      </span>
+    );
+  }
+  if (id === "blackjack") {
+    return (
+      <span className="relative mr-1 inline-block h-11 w-11 shrink-0" aria-hidden>
+        <span className="absolute top-1 left-0 flex h-9 w-6 rotate-[-10deg] flex-col items-center justify-center rounded-sm bg-[#f8f4ea] text-[#1a1612] shadow">
+          <span className="text-[9px] font-bold leading-none">A</span>
+          <span className="text-[10px] leading-none">♠</span>
+        </span>
+        <span className="absolute top-0 left-4 flex h-9 w-6 rotate-[12deg] flex-col items-center justify-center rounded-sm bg-[#f8f4ea] text-[#c41e3a] shadow">
+          <span className="text-[9px] font-bold leading-none">J</span>
+          <span className="text-[10px] leading-none">♦</span>
+        </span>
+      </span>
+    );
+  }
   return (
     <span
       className="mr-2 flex h-11 w-8 shrink-0 flex-col items-center justify-center rounded-md bg-[#f8f4ea] text-[#c41e3a] shadow-md"
