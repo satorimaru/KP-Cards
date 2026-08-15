@@ -95,11 +95,11 @@ export default function SpeedHomePage() {
           type="button"
           onClick={() => {
             setPlayerName(name);
-            router.push("/speed/solo");
+            router.push("/speed/tutorial");
           }}
           className="btn-gold mb-5 w-full touch-manipulation"
         >
-          {t("speed.vsBot")}
+          {t("speed.tutorial")}
         </button>
 
         <div className="mb-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[var(--mute)]">

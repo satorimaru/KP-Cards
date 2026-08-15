@@ -36,7 +36,35 @@ const en = {
   "speed.blurb":
     "Race to empty 20 cards. Play one rank up or down. Ace sits next to King and 2.",
   "speed.hold": "This seat is reserved",
-  "speed.vsBot": "Deal vs bot",
+  "speed.tutorial": "How to play",
+  "speed.tutNext": "Next",
+  "speed.tutBack": "Back",
+  "speed.tutDone": "Back to Speed",
+  "speed.tutStep": "{n} / {max}",
+  "speed.tut1Title": "Win",
+  "speed.tut1Body":
+    "First to empty all 20 cards wins — the 4 you hold plus the pile on the right.",
+  "speed.tut2Title": "The deal",
+  "speed.tut2Body":
+    "You start with 4 cards showing and 16 face-down in your pile. Two center stocks of 6 wait face-down.",
+  "speed.tut3Title": "Ready",
+  "speed.tut3Body":
+    "Both players tap Ready. Then one live card flips from each stock.",
+  "speed.tut4Title": "Play",
+  "speed.tut4Body":
+    "Tap a card in your hand, then tap the live card you want to cover. It must be one rank higher or lower. Ace sits next to King and 2. Suit does not matter.",
+  "speed.tut5Title": "Draw",
+  "speed.tut5Body":
+    "Tap your pile on the right to fill empty hand slots. You can hold 4 at a time. Drawn cards are not sorted.",
+  "speed.tut6Title": "Sort",
+  "speed.tut6Body":
+    "Sort puts your hand in rank order, but you freeze for one second. Use it only if you need the extra look.",
+  "speed.tut7Title": "Next",
+  "speed.tut7Body":
+    "If you have no play, tap Next. The other player can keep going. When both are Next, two new live cards flip. After the 12 stock cards are gone, played cards flip and become the new stocks.",
+  "speed.tut8Title": "Opponent",
+  "speed.tut8Body":
+    "You only see their remaining cards as a meter. The number appears when they have 5 or fewer left.",
   "speed.ready": "Ready",
   "speed.unready": "Hold",
   "speed.waiting": "Both players ready to flip",
@@ -241,7 +269,35 @@ const vi: Record<keyof typeof en, string> = {
   "speed.blurb":
     "Đua hết 20 lá. Đánh hơn hoặc kém một bậc. Át kề già và 2.",
   "speed.hold": "Ghế này để dành",
-  "speed.vsBot": "Chia với máy",
+  "speed.tutorial": "Cách chơi",
+  "speed.tutNext": "Tiếp",
+  "speed.tutBack": "Trước",
+  "speed.tutDone": "Về Speed",
+  "speed.tutStep": "{n} / {max}",
+  "speed.tut1Title": "Thắng",
+  "speed.tut1Body":
+    "Ai hết cả 20 lá trước thắng — 4 lá trên tay và chồng bên phải.",
+  "speed.tut2Title": "Chia bài",
+  "speed.tut2Body":
+    "Bạn có 4 lá ngửa và 16 lá úp trong chồng. Hai chồng giữa mỗi bên 6 lá, đang úp.",
+  "speed.tut3Title": "Sẵn sàng",
+  "speed.tut3Body":
+    "Cả hai bấm Sẵn sàng. Mỗi chồng giữa lật một lá sống.",
+  "speed.tut4Title": "Đánh",
+  "speed.tut4Body":
+    "Chạm lá trên tay, rồi chạm lá sống muốn đè. Phải hơn hoặc kém đúng một bậc. Át kề già và 2. Chất không quan trọng.",
+  "speed.tut5Title": "Bốc",
+  "speed.tut5Body":
+    "Chạm chồng bên phải để lấp chỗ trống. Tối đa 4 lá. Bốc lên thì chưa xếp thứ tự.",
+  "speed.tut6Title": "Xếp",
+  "speed.tut6Body":
+    "Xếp sắp tay theo bậc, nhưng bạn đứng một giây. Chỉ dùng khi cần nhìn rõ hơn.",
+  "speed.tut7Title": "Kế",
+  "speed.tut7Body":
+    "Hết nước thì bấm Kế. Đối thủ vẫn đánh được. Cả hai cùng Kế thì lật hai lá sống mới. Hết 12 lá chồng thì bài đã đánh được lật lại làm chồng mới.",
+  "speed.tut8Title": "Đối thủ",
+  "speed.tut8Body":
+    "Bạn chỉ thấy thanh số lá còn lại. Con số hiện khi họ còn 5 lá trở xuống.",
   "speed.ready": "Sẵn sàng",
   "speed.unready": "Chờ đã",
   "speed.waiting": "Cả hai sẵn sàng thì lật",

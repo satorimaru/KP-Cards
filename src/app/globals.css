@@ -145,6 +145,16 @@ button:disabled {
     0 0 14px rgba(196, 30, 58, 0.35);
 }
 
+.sort-spin {
+  animation: sort-spin 0.85s linear infinite;
+}
+
+@keyframes sort-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .card-face {
   background:
     linear-gradient(180deg, #fffaf0 0%, #f3ead6 100%);

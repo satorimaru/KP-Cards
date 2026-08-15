@@ -110,14 +110,11 @@ export function CardView({
   const interactive = Boolean(onClick) && !disabled;
   const faceClass = [
     sizeClass[size],
-    "card-face relative flex flex-col items-center justify-between rounded-[0.7rem] px-[0.32rem] py-[0.28rem]",
+    "card-face relative box-border flex flex-col items-center justify-between rounded-[0.7rem] border-[3px] px-[0.32rem] py-[0.28rem]",
     "select-none font-semibold touch-manipulation",
     ink,
-    selected
-      ? size === "fill"
-        ? "ring-[3px] ring-[var(--gold)]"
-        : "-translate-y-3 ring-2 ring-[var(--gold)]"
-      : "",
+    selected ? "border-[var(--gold)]" : "border-transparent",
+    selected && size !== "fill" ? "-translate-y-3" : "",
     interactive ? "cursor-pointer active:brightness-95" : "cursor-default",
     className ?? "",
   ].join(" ");

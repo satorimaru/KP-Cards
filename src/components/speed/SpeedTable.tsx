@@ -153,18 +153,28 @@ export function SpeedTable({
               className={[
                 "relative flex w-[min(46%,10.25rem)] shrink-0 flex-col items-center",
                 selectedCard ? "cursor-pointer" : "",
-                hot ? "scale-[1.02]" : "",
               ].join(" ")}
             >
-              <div className="pointer-events-none w-full aspect-[5/7]">
+              <div
+                className={[
+                  "pointer-events-none w-full aspect-[5/7] rounded-[0.85rem] border-[3px]",
+                  selectedCard
+                    ? "border-[var(--gold)]"
+                    : "border-transparent",
+                  hot ? "shadow-[0_0_16px_rgba(212,176,106,0.45)]" : "",
+                ].join(" ")}
+              >
                 {pile.live && view.status !== "waiting" ? (
-                  <CardView
-                    card={pile.live}
-                    size="fill"
-                    selected={hot}
-                  />
+                  <CardView card={pile.live} size="fill" />
                 ) : (
-                  <div className="h-full w-full rounded-[0.7rem] border border-dashed border-[rgba(212,176,106,0.28)] bg-black/20" />
+                  <div
+                    className={[
+                      "h-full w-full rounded-[0.7rem] border-2 border-dashed bg-black/20",
+                      selectedCard
+                        ? "border-[var(--gold)]"
+                        : "border-[rgba(212,176,106,0.28)]",
+                    ].join(" ")}
+                  />
                 )}
               </div>
               <span className="mt-1 h-3 shrink-0 text-[10px] tabular-nums text-[var(--gold-dim)]">
@@ -202,22 +212,66 @@ export function SpeedTable({
       )}
 
       <div className="mt-1.5 flex shrink-0 items-stretch gap-1.5">
-        <div className="grid min-w-0 flex-1 grid-cols-4 gap-1">
-          {slots.map((card, i) => (
-            <div key={card ? cardId(card) : `empty-${i}`} className="aspect-[5/7] min-w-0">
-              {card ? (
-                <CardView
-                  card={card}
-                  size="fill"
-                  selected={selected === cardId(card)}
-                  disabled={locked || view.status !== "playing"}
-                  onClick={() => tapCard(card)}
+        <div className="relative min-w-0 flex-1">
+          <div className="grid grid-cols-4 gap-1">
+            {slots.map((card, i) => (
+              <div key={card ? cardId(card) : `empty-${i}`} className="aspect-[5/7] min-w-0">
+                {card ? (
+                  <CardView
+                    card={card}
+                    size="fill"
+                    selected={selected === cardId(card)}
+                    disabled={locked || view.status !== "playing"}
+                    onClick={() => tapCard(card)}
+                  />
+                ) : (
+                  <div className="h-full w-full rounded-[0.7rem] border border-dashed border-[rgba(244,234,216,0.12)]" />
+                )}
+              </div>
+            ))}
+          </div>
+          {sorting && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center rounded-[0.7rem] bg-[rgba(8,14,12,0.62)]"
+              aria-hidden
+            >
+              <svg
+                viewBox="0 0 48 48"
+                className="h-12 w-12 text-[var(--gold)] sort-spin"
+              >
+                <path
+                  d="M14 10.5 A16 16 0 0 1 38 18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3.4"
+                  strokeLinecap="round"
                 />
-              ) : (
-                <div className="h-full w-full rounded-[0.7rem] border border-dashed border-[rgba(244,234,216,0.12)]" />
-              )}
+                <path
+                  d="M38 11 V19 H30"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M34 37.5 A16 16 0 0 1 10 30"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3.4"
+                  strokeLinecap="round"
+                />
+                <path
+                  d="M10 37 V29 H18"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
-          ))}
+          )}
         </div>
         <button
           type="button"
