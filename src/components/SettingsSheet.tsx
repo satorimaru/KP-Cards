@@ -2,6 +2,7 @@
 
 import type { GameRules } from "@/lib/rules";
 import { useApp } from "./AppProviders";
+import { ChipStake } from "./ChipStake";
 import { LangToggle } from "./LangToggle";
 import { ModePicker } from "./ModePicker";
 
@@ -113,6 +114,11 @@ export function SettingsSheet({
             </p>
             <div className="mb-5">
               <ModePicker
+                rules={rules}
+                onChange={onChangeRules}
+                disabled={rulesLocked}
+              />
+              <ChipStake
                 rules={rules}
                 onChange={onChangeRules}
                 disabled={rulesLocked}

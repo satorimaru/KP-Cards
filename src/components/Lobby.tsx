@@ -5,6 +5,7 @@ import { parseRules, type GameRules } from "@/lib/rules";
 import type { RoomView } from "@/lib/rooms/types";
 import { useApp } from "./AppProviders";
 import { ChatButton } from "./ChatSheet";
+import { ChipStake } from "./ChipStake";
 import { ModePicker } from "./ModePicker";
 
 interface LobbyProps {
@@ -19,6 +20,7 @@ interface LobbyProps {
   busy?: boolean;
   error?: string | null;
   onChangeRules?: (rules: GameRules) => void;
+  onBuyIn?: () => void;
 }
 
 export function Lobby({
@@ -33,6 +35,7 @@ export function Lobby({
   busy,
   error,
   onChangeRules,
+  onBuyIn,
 }: LobbyProps) {
   const { t, te } = useApp();
   const [copied, setCopied] = useState(false);
@@ -41,6 +44,8 @@ export function Lobby({
   const isHost = room.hostId === playerId;
   const allReady =
     room.players.length >= 2 && room.players.every((p) => p.ready);
+  const anyoneBroke =
+    rules.chips && room.players.some((p) => (p.chips ?? 0) <= 0);
   const seats = Array.from({ length: room.maxPlayers }, (_, i) => {
     return room.players.find((p) => p.seat === i) ?? null;
   });
@@ -107,6 +112,12 @@ export function Lobby({
               <div>
                 <p className="text-sm font-medium text-[var(--ivory)]">
                   {p ? p.name : t("lobby.openSeat")}
+                  {p && rules.chips && (
+                    <span className="ml-2 text-[var(--gold)] tabular-nums">
+                      {p.chips ?? 0}
+                      {(p.buyIns ?? 0) > 0 ? ` ↻${p.buyIns}` : ""}
+                    </span>
+                  )}
                 </p>
                 <p className="text-[11px] text-[var(--mute)]">
                   {p?.id === room.hostId
@@ -139,6 +150,11 @@ export function Lobby({
           {t("settings.modes")}
         </p>
         <ModePicker
+          rules={rules}
+          disabled={!isHost || busy || !onChangeRules}
+          onChange={(next) => onChangeRules?.(next)}
+        />
+        <ChipStake
           rules={rules}
           disabled={!isHost || busy || !onChangeRules}
           onChange={(next) => onChangeRules?.(next)}
@@ -205,10 +221,20 @@ export function Lobby({
       )}
 
       <div className="flex flex-col gap-2">
-        {me && (
+        {me && rules.chips && (me.chips ?? 0) <= 0 && onBuyIn && (
           <button
             type="button"
             disabled={busy}
+            onClick={onBuyIn}
+            className="btn-gold w-full"
+          >
+            {t("chips.buyIn", { n: rules.startChips })}
+          </button>
+        )}
+        {me && (
+          <button
+            type="button"
+            disabled={busy || (rules.chips && (me.chips ?? 0) <= 0)}
             onClick={() => onReady(!me.ready)}
             className={me.ready ? "btn-ghost w-full" : "btn-gold w-full"}
           >
@@ -218,7 +244,7 @@ export function Lobby({
         {isHost && (
           <button
             type="button"
-            disabled={busy || !allReady}
+            disabled={busy || !allReady || anyoneBroke}
             onClick={onStart}
             className="btn-ghost w-full"
           >
@@ -227,7 +253,12 @@ export function Lobby({
         )}
       </div>
 
-      {isHost && !allReady && (
+      {isHost && anyoneBroke && (
+        <p className="mt-3 text-center text-xs text-[var(--mute)]">
+          {t("err.needChips")}
+        </p>
+      )}
+      {isHost && !allReady && !anyoneBroke && (
         <p className="mt-3 text-center text-xs text-[var(--mute)]">
           {t("lobby.needReady")}
         </p>

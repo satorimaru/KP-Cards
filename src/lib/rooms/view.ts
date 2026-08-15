@@ -34,6 +34,7 @@ function baseView(room: Room): Omit<RoomView, "hand" | "you" | "messages"> {
     turnStartedAt: room.turnStartedAt ?? null,
     startedAt: room.startedAt,
     createdAt: room.createdAt,
+    lastChipPays: room.lastChipPays ?? [],
     usingRedis: usingRedis(),
   };
 }

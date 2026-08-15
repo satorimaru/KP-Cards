@@ -13,6 +13,7 @@ import {
   setRoomRules,
   startGame,
   timeoutTurn,
+  buyIn,
 } from "@/lib/rooms/service";
 import { toPublicView, toRoomView } from "@/lib/rooms/view";
 
@@ -115,6 +116,10 @@ export async function POST(request: Request, { params }: Params) {
       }
       case "timeout": {
         const room = await timeoutTurn(roomId, playerId);
+        return NextResponse.json({ room: toRoomView(room, playerId) });
+      }
+      case "buyin": {
+        const room = await buyIn(roomId, playerId);
         return NextResponse.json({ room: toRoomView(room, playerId) });
       }
       default:

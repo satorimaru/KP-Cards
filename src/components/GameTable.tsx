@@ -41,10 +41,13 @@ interface GameTableProps {
   onPlay: (cards: Card[]) => Promise<void>;
   onPass: () => Promise<void>;
   onRematch: () => Promise<void>;
+  onBuyIn?: () => void;
+  onMenu?: () => void;
   busy?: boolean;
   error?: string | null;
   rematchLabel?: string;
   rematchHint?: string;
+  menuLabel?: string;
   onTimeout?: () => void;
 }
 
@@ -66,10 +69,13 @@ export function GameTable({
   onPlay,
   onPass,
   onRematch,
+  onBuyIn,
+  onMenu,
   busy,
   error,
   rematchLabel,
   rematchHint,
+  menuLabel,
   onTimeout,
 }: GameTableProps) {
   const { t, te } = useApp();
@@ -274,6 +280,17 @@ export function GameTable({
   const currentName =
     room.players.find((p) => p.id === room.currentPlayerId)?.name ?? "…";
 
+  const prompt =
+    room.status === "finished"
+      ? t("game.handOver")
+      : isMyTurn
+        ? room.pile.length
+          ? t("game.beatOrPass")
+          : mustLeadCard
+            ? t("game.lead", { card: formatCard(mustLeadCard) })
+            : t("game.yourLead")
+        : "\u00a0";
+
   const nextAfterMe = useMemo(() => {
     if (!unoOn || !me || room.status !== "playing") return null;
     let dir: 1 | -1 = room.direction === -1 ? -1 : 1;
@@ -310,7 +327,7 @@ export function GameTable({
   }, [nextAfterMe, opponents, room.direction, combo?.uno]);
 
   return (
-    <div ref={tableRef} className="relative flex min-h-0 flex-1 flex-col">
+    <div ref={tableRef} className="game-board relative flex min-h-0 flex-1 flex-col">
       {toss && (
         <CardThrow
           key={toss.key}
@@ -329,19 +346,19 @@ export function GameTable({
           seatsRef={seatsRef}
         />
       )}
-      <div className="flex items-center gap-1 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="seat-row flex items-stretch gap-1 overflow-hidden px-1">
         {opponents.map((p, i) => (
-          <div key={p.id} className="flex min-w-0 flex-1 items-center">
+          <div key={p.id} className="flex min-w-0 flex-1 items-stretch">
           {unoOn && i > 0 && (
             <UnoSeatArrow direction={room.direction === -1 ? -1 : 1} />
           )}
           <div
             ref={bindSeat(p.id)}
-            className="relative min-w-[5.5rem] flex-1"
+            className="relative min-w-0 flex-1"
           >
           <div
             className={[
-              "relative overflow-visible rounded-2xl px-2 py-2 text-center",
+              "seat-card relative flex flex-col items-center justify-center overflow-hidden rounded-2xl px-1.5 text-center",
               p.id === room.currentPlayerId
                 ? "turn-seat"
                 : p.satOut
@@ -354,50 +371,58 @@ export function GameTable({
                 : "",
             ].join(" ")}
           >
-            {p.id === room.currentPlayerId && (
-              <p className="mb-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-[#1a1408]">
-                {t("game.turnBadge")}
-              </p>
-            )}
             <p
               className={[
-                "truncate text-xs font-medium",
+                "h-3 text-[10px] font-bold uppercase tracking-[0.16em]",
+                p.id === room.currentPlayerId
+                  ? "text-[#1a1408]"
+                  : "invisible",
+              ].join(" ")}
+            >
+              {t("game.turnBadge")}
+            </p>
+            <p
+              className={[
+                "w-full truncate text-xs font-medium",
                 p.id === room.currentPlayerId
                   ? "text-[#1a1408]"
                   : "text-[var(--ivory)]",
               ].join(" ")}
             >
               {p.name}
-              {p.finishOrder != null && (
-                <span className="ml-1 text-[var(--gold)]">#{p.finishOrder}</span>
-              )}
             </p>
-            {room.status === "playing" && p.finishOrder == null && (
-              <span
-                className={[
-                  "mt-1",
-                  p.satOut ? "round-out" : "round-in",
-                ].join(" ")}
-              >
-                {p.satOut ? t("game.satOut") : t("game.inRound")}
-              </span>
-            )}
-            {rules.siege && room.players.length === 4 && (
-              <p
-                className={[
-                  "text-[10px]",
-                  p.id === room.currentPlayerId
-                    ? "text-[#1a1408]/70"
-                    : "text-[var(--gold-dim)]",
-                ].join(" ")}
-              >
-                {teamOf(p.seat) === 0 ? t("game.teamA") : t("game.teamB")}
+            {rules.chips && (
+              <p className="h-3 w-full truncate text-[10px] tabular-nums text-[var(--gold)]">
+                {p.chips ?? 0}
+                {(p.buyIns ?? 0) > 0 ? ` ↻${p.buyIns}` : ""}
               </p>
             )}
-            <UnoPlayerMark player={p} fx={fx} youId={playerId} />
+            <div className="mt-0.5 flex h-4 items-center justify-center gap-1">
+              {p.finishOrder != null ? (
+                <span className="text-[10px] font-semibold text-[var(--gold)]">
+                  #{p.finishOrder}
+                </span>
+              ) : room.status === "playing" ? (
+                <span className={p.satOut ? "round-out" : "round-in"}>
+                  {p.satOut ? t("game.satOut") : t("game.inRound")}
+                </span>
+              ) : null}
+              {rules.siege && room.players.length === 4 && (
+                <span
+                  className={[
+                    "text-[10px]",
+                    p.id === room.currentPlayerId
+                      ? "text-[#1a1408]/70"
+                      : "text-[var(--gold-dim)]",
+                  ].join(" ")}
+                >
+                  {teamOf(p.seat) === 0 ? t("game.teamA") : t("game.teamB")}
+                </span>
+              )}
+            </div>
             <p
               className={[
-                "mt-1 text-[11px] font-semibold",
+                "h-4 text-[11px] font-semibold",
                 p.id === room.currentPlayerId
                   ? "text-[#1a1408]"
                   : "text-[var(--mute)]",
@@ -405,6 +430,7 @@ export function GameTable({
             >
               {p.cardCount}
             </p>
+            <UnoPlayerMark player={p} fx={fx} youId={playerId} />
             <UnoPlayedBadge playerId={p.id} fx={fx} />
             {fx?.targetPlayerId === p.id && fx.uno === "skip" && (
               <SkipX burstKey={burstKey} />
@@ -419,19 +445,21 @@ export function GameTable({
         ))}
       </div>
 
-      {unoOn && room.status === "playing" && (
-        <UnoDirectionBar
-          direction={room.direction === -1 ? -1 : 1}
-          reversing={fx?.comboType === "reverse"}
-        />
-      )}
-
       <div
         className={[
-          "table-felt relative my-2 flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden rounded-[1.6rem] px-3 py-4",
+          "table-felt relative my-1 flex min-h-0 flex-1 flex-col items-center overflow-hidden rounded-[1.6rem] px-3",
+          unoOn && room.status === "playing" ? "pt-11 pb-3" : "py-3",
           bombFx ? "nuke-shake" : "",
         ].join(" ")}
       >
+        {unoOn && room.status === "playing" && (
+          <div className="absolute inset-x-2 top-1.5 z-10">
+            <UnoDirectionBar
+              direction={room.direction === -1 ? -1 : 1}
+              reversing={fx?.comboType === "reverse"}
+            />
+          </div>
+        )}
         {unoOn && nextSide && nextAfterMe && (
           <span
             className={[
@@ -466,8 +494,8 @@ export function GameTable({
           />
         )}
         {rules.blitz && blitzLeft != null && room.status === "playing" && (
-          <div className="mb-2 w-full max-w-[12rem]">
-            <div className="mb-1 text-center text-[11px] text-[var(--gold)]">
+          <div className="pointer-events-none absolute right-2 top-2 z-10 w-16">
+            <div className="mb-0.5 text-center text-[10px] tabular-nums text-[var(--gold)]">
               {t("game.timer", { n: Math.ceil(blitzLeft / 1000) })}
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-black/30">
@@ -478,39 +506,27 @@ export function GameTable({
             </div>
           </div>
         )}
-        {banner && (
-          <p className="mb-1 text-[11px] tracking-wide text-[var(--gold)]">
-            {banner}
-          </p>
-        )}
-        {room.status === "playing" && (
-          <div
-            key={room.currentPlayerId ?? "none"}
-            className="turn-chip mb-2"
-          >
-            {isMyTurn
-              ? t("game.yourTurn")
-              : t("game.turnOf", { name: currentName })}
-          </div>
-        )}
-        {room.status === "finished" ? (
-          <p className="mb-3 max-w-[16rem] text-center text-sm text-[var(--ivory)]">
-            {t("game.handOver")}
-          </p>
-        ) : isMyTurn ? (
-          <p className="mb-3 max-w-[16rem] text-center text-sm text-[var(--ivory)]">
-            {room.pile.length
-              ? t("game.beatOrPass")
-              : mustLeadCard
-                ? t("game.lead", { card: formatCard(mustLeadCard) })
-                : t("game.yourLead")}
-          </p>
-        ) : (
-          <div className="mb-3" />
-        )}
+        <p className="felt-banner w-full shrink-0 text-center text-[11px] tracking-wide text-[var(--gold)]">
+          {banner ?? "\u00a0"}
+        </p>
+        <div className="flex h-9 w-full shrink-0 items-center justify-center">
+          {room.status === "playing" && (
+            <div
+              key={room.currentPlayerId ?? "none"}
+              className="turn-chip"
+            >
+              {isMyTurn
+                ? t("game.yourTurn")
+                : t("game.turnOf", { name: currentName })}
+            </div>
+          )}
+        </div>
+        <p className="felt-prompt mb-1 w-full shrink-0 text-center text-sm text-[var(--ivory)]">
+          {prompt}
+        </p>
         <div
           ref={pileRef}
-          className="relative flex min-h-[5.6rem] min-w-[9rem] items-center justify-center"
+          className="relative flex min-h-0 w-full min-w-[9rem] flex-1 items-center justify-center"
         >
           {room.status !== "finished" &&
             trick.map((cards, i) => (
@@ -534,17 +550,17 @@ export function GameTable({
             ) : null}
           </div>
         </div>
-        {room.status !== "finished" && room.pileType && (
-          <p className="mt-2 text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
-            {t(comboKey(room.pileType))}
-          </p>
-        )}
+        <p className="felt-combo mt-1 w-full shrink-0 text-center text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+          {room.status !== "finished" && room.pileType
+            ? t(comboKey(room.pileType))
+            : "\u00a0"}
+        </p>
       </div>
 
       <div
         ref={bindSeat(playerId)}
         className={[
-          "relative rounded-t-[1.6rem] border-t bg-[rgba(8,14,12,0.94)] px-3 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+          "dock-lock relative rounded-t-[1.6rem] border-t bg-[rgba(8,14,12,0.94)] px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
           isMyTurn && room.status === "playing"
             ? "turn-dock border-[var(--gold)]"
             : "border-[rgba(212,176,106,0.14)]",
@@ -553,13 +569,21 @@ export function GameTable({
         {bombFx?.targetPlayerId === playerId && (
           <MushroomCloud size="seat" burstKey={bombKey} />
         )}
-        <div className="mb-1 flex items-center justify-between text-sm">
-          <span className="text-[var(--ivory)]">
+        <div className="dock-name relative flex items-center justify-between text-sm">
+          <div className="pointer-events-none absolute inset-0 z-10">
+            {me && <UnoPlayerMark player={me} fx={fx} youId={playerId} />}
+            {fx?.targetPlayerId === playerId && fx.uno === "skip" && (
+              <SkipX burstKey={burstKey} />
+            )}
+            {passId === playerId && <PassWave burstKey={passKey} />}
+          </div>
+          <span className="min-w-0 truncate text-[var(--ivory)]">
             {me?.name ?? t("game.you")}
             <span className="ml-2 text-[var(--mute)]">{room.hand.length}</span>
-            {isMyTurn && room.status === "playing" && (
-              <span className="ml-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--gold)]">
-                {t("game.yourTurn")}
+            {rules.chips && (
+              <span className="ml-2 tabular-nums text-[var(--gold)]">
+                {me?.chips ?? 0}
+                {(me?.buyIns ?? 0) > 0 ? ` ↻${me?.buyIns}` : ""}
               </span>
             )}
             {room.status === "playing" && me?.finishOrder == null && (
@@ -572,24 +596,21 @@ export function GameTable({
                 {me?.satOut ? t("game.satOut") : t("game.inRound")}
               </span>
             )}
-            {me && <UnoPlayerMark player={me} fx={fx} youId={playerId} />}
-            {fx?.targetPlayerId === playerId && fx.uno === "skip" && (
-              <SkipX burstKey={burstKey} />
-            )}
-            {passId === playerId && <PassWave burstKey={passKey} />}
           </span>
-          {selected.length > 0 && (
-            <button
-              type="button"
-              className="min-h-8 px-2 text-xs text-[var(--gold)]"
-              onClick={() => {
-                setSelected([]);
-                setJokerFace({});
-              }}
-            >
-              {t("game.clear")}
-            </button>
-          )}
+          <button
+            type="button"
+            className={[
+              "min-h-8 shrink-0 px-2 text-xs text-[var(--gold)]",
+              selected.length > 0 ? "" : "invisible",
+            ].join(" ")}
+            disabled={selected.length === 0}
+            onClick={() => {
+              setSelected([]);
+              setJokerFace({});
+            }}
+          >
+            {t("game.clear")}
+          </button>
         </div>
 
         <Hand
@@ -600,7 +621,7 @@ export function GameTable({
         />
 
         {selectedJokers.length > 0 && (
-          <div className="mt-2 space-y-2">
+          <div className="absolute inset-x-2 bottom-full z-30 mb-1 max-h-[38vh] space-y-2 overflow-y-auto rounded-2xl border border-[rgba(212,176,106,0.22)] bg-[rgba(8,14,12,0.96)] p-2 shadow-[0_-12px_28px_rgba(0,0,0,0.45)]">
             {selectedJokers.map((joker, i) => {
               const id = cardId(joker);
               const face = jokerFace[id];
@@ -671,12 +692,12 @@ export function GameTable({
         )}
 
         {error && (
-          <p className="mb-2 rounded-lg bg-[rgba(196,30,58,0.12)] px-3 py-2 text-center text-sm text-[#f0b4bd]">
+          <p className="pointer-events-none absolute inset-x-3 bottom-[4.35rem] z-20 rounded-lg bg-[rgba(196,30,58,0.92)] px-3 py-1.5 text-center text-sm text-[#f0b4bd]">
             {te(error)}
           </p>
         )}
 
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex h-12 shrink-0 gap-2">
           <button
             type="button"
             disabled={!canPlay || busy}
@@ -686,7 +707,7 @@ export function GameTable({
                 setJokerFace({});
               });
             }}
-            className="btn-gold flex-1 touch-manipulation"
+            className="btn-gold min-w-0 flex-1 touch-manipulation truncate whitespace-nowrap px-2"
           >
             {t("game.play")}
             {combo
@@ -711,9 +732,12 @@ export function GameTable({
           room={room}
           playerId={playerId}
           onRematch={onRematch}
+          onBuyIn={onBuyIn}
+          onMenu={onMenu}
           busy={busy}
           rematchLabel={rematchLabel}
           rematchHint={rematchHint}
+          menuLabel={menuLabel}
         />
       )}
     </div>

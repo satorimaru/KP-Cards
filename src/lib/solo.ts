@@ -19,7 +19,12 @@ export function handToRoomView(
   state: HandState,
   names: string[],
   lastEvent: RoomEvent | null,
-  extras?: { turnStartedAt?: number | null },
+  extras?: {
+    turnStartedAt?: number | null;
+    chips?: number[];
+    buyIns?: number[];
+    lastChipPays?: RoomView["lastChipPays"];
+  },
 ): RoomView {
   const players = names.map((name, seat) => {
     const place = state.finishOrder.indexOf(seat);
@@ -32,6 +37,8 @@ export function handToRoomView(
       finishOrder: place >= 0 ? place + 1 : null,
       lastSeenAt: 0,
       satOut: (state.satOut ?? []).includes(seat),
+      chips: extras?.chips?.[seat],
+      buyIns: extras?.buyIns?.[seat] ?? 0,
     };
   });
 
@@ -64,6 +71,7 @@ export function handToRoomView(
     turnStartedAt: extras?.turnStartedAt ?? null,
     startedAt: null,
     createdAt: 0,
+    lastChipPays: extras?.lastChipPays ?? [],
     you: HUMAN_ID,
     usingRedis: false,
   };

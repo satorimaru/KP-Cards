@@ -25,6 +25,11 @@ const MODES = [
     title: "mode.uno",
     hint: "mode.unoHint",
   },
+  {
+    key: "chips" as const,
+    title: "mode.chips",
+    hint: "mode.chipsHint",
+  },
 ] as const;
 
 interface ModePickerProps {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RoomError } from "./errors";
 import {
+  buyIn,
   createRoom,
   joinRoom,
   leaveRoom,
@@ -13,7 +14,7 @@ import {
 } from "./service";
 import { MAX_CHAT_TEXT } from "./types";
 import { sameCard } from "@/lib/tienlen/types";
-import { getRoom } from "./store";
+import { getRoom, saveRoom } from "./store";
 import { toPublicView, toRoomView } from "./view";
 
 describe("rooms", () => {
@@ -153,5 +154,115 @@ describe("rooms", () => {
     expect(
       Object.values(started.hands).every((h) => h.length === 13),
     ).toBe(true);
+  });
+
+  it("seeds chips, settles a 2-player hand, and requires a buy-in when broke", async () => {
+    const room = await createRoom("chip-host", "Host", 2, {
+      chips: true,
+      startChips: 10,
+    });
+    expect(room.players[0].chips).toBe(10);
+    expect(room.players[0].buyIns).toBe(0);
+
+    await joinRoom(room.id, "chip-guest", "Guest");
+    const seated = await getRoom(room.id);
+    expect(seated?.players.map((p) => p.chips)).toEqual([10, 10]);
+
+    await setReady(room.id, "chip-host", true);
+    await setReady(room.id, "chip-guest", true);
+    const started = await startGame(room.id, "chip-host");
+    const host = started.players.find((p) => p.id === "chip-host")!;
+    const guest = started.players.find((p) => p.id === "chip-guest")!;
+    const lead = { rank: "3" as const, suit: "S" as const};
+
+    started.hands[host.id] = [lead];
+    started.hands[guest.id] = [{ rank: "4", suit: "H" }];
+    started.leadCard = lead;
+    started.currentPlayerId = host.id;
+    started.pile = [];
+    started.pileType = null;
+    started.passesInRow = 0;
+    guest.chips = 1;
+    await saveRoom(started);
+
+    const finished = await playCards(room.id, host.id, [lead]);
+    expect(finished.status).toBe("finished");
+    const hostAfter = finished.players.find((p) => p.id === "chip-host")!;
+    const guestAfter = finished.players.find((p) => p.id === "chip-guest")!;
+    expect(hostAfter.finishOrder).toBe(1);
+    expect(guestAfter.finishOrder).toBe(2);
+    expect(hostAfter.chips).toBe(11);
+    expect(guestAfter.chips).toBe(0);
+    expect(finished.lastChipPays).toEqual([
+      { fromPlayerId: "chip-guest", toPlayerId: "chip-host", amount: 1 },
+    ]);
+
+    await rematchRoom(room.id, "chip-host");
+    await setReady(room.id, "chip-host", true);
+    await setReady(room.id, "chip-guest", true);
+    await expect(startGame(room.id, "chip-host")).rejects.toThrow(/needChips/);
+
+    await expect(buyIn(room.id, "chip-host")).rejects.toThrow(/notBroke/);
+    const bought = await buyIn(room.id, "chip-guest");
+    const guestBought = bought.players.find((p) => p.id === "chip-guest")!;
+    expect(guestBought.chips).toBe(10);
+    expect(guestBought.buyIns).toBe(1);
+    expect(bought.lastEvent).toEqual({
+      kind: "buyin",
+      playerId: "chip-guest",
+      amount: 10,
+    });
+
+    const rematchStacks = bought.players.map((p) => p.chips);
+    const again = await startGame(room.id, "chip-host");
+    expect(again.status).toBe("playing");
+    expect(again.players.map((p) => p.chips)).toEqual(rematchStacks);
+    expect(again.lastChipPays).toEqual([]);
+  });
+
+  it("settles a 3-player hand: 3rd pays 1st, 2nd sits", async () => {
+    const room = await createRoom("chip3-host", "Host", 3, {
+      chips: true,
+      startChips: 10,
+    });
+    await joinRoom(room.id, "chip3-a", "A");
+    await joinRoom(room.id, "chip3-b", "B");
+    await setReady(room.id, "chip3-host", true);
+    await setReady(room.id, "chip3-a", true);
+    await setReady(room.id, "chip3-b", true);
+    const started = await startGame(room.id, "chip3-host");
+    const byId = Object.fromEntries(started.players.map((p) => [p.id, p]));
+    const first = { rank: "3" as const, suit: "S" as const };
+    const beat = { rank: "5" as const, suit: "H" as const };
+
+    started.hands["chip3-host"] = [first];
+    started.hands["chip3-a"] = [beat];
+    started.hands["chip3-b"] = [
+      { rank: "4", suit: "D" },
+      { rank: "6", suit: "C" },
+    ];
+    started.leadCard = first;
+    started.currentPlayerId = "chip3-host";
+    started.pile = [];
+    started.pileType = null;
+    started.passesInRow = 0;
+    byId["chip3-host"].cardCount = 1;
+    byId["chip3-a"].cardCount = 1;
+    byId["chip3-b"].cardCount = 2;
+    await saveRoom(started);
+
+    await playCards(room.id, "chip3-host", [first]);
+    const finished = await playCards(room.id, "chip3-a", [beat]);
+    expect(finished.status).toBe("finished");
+    expect(
+      finished.players.map((p) => [p.id, p.finishOrder, p.chips]),
+    ).toEqual([
+      ["chip3-host", 1, 12],
+      ["chip3-a", 2, 10],
+      ["chip3-b", 3, 8],
+    ]);
+    expect(finished.lastChipPays).toEqual([
+      { fromPlayerId: "chip3-b", toPlayerId: "chip3-host", amount: 2 },
+    ]);
   });
 });

@@ -28,11 +28,14 @@ export function ChatButton({
   return (
     <button type="button" onClick={onClick} className={className}>
       {t("nav.chat")}
-      {unread > 0 && (
-        <span className="ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#1a1408]">
-          {unread > 9 ? "9+" : unread}
-        </span>
-      )}
+      <span
+        className={[
+          "ml-1.5 inline-flex min-w-5 items-center justify-center rounded-full bg-[var(--gold)] px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#1a1408]",
+          unread > 0 ? "" : "invisible",
+        ].join(" ")}
+      >
+        {unread > 9 ? "9+" : unread || "0"}
+      </span>
     </button>
   );
 }

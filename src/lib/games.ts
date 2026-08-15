@@ -25,7 +25,7 @@ export const GAMES: GameInfo[] = [
   {
     id: "speed",
     href: "/speed",
-    status: "soon",
+    status: "live",
     title: "catalog.speed",
     tag: "catalog.speedTag",
     blurb: "catalog.speedBlurb",

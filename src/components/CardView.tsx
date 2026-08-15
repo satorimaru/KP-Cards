@@ -14,14 +14,17 @@ interface CardViewProps {
   selected?: boolean;
   onClick?: () => void;
   disabled?: boolean;
-  size?: "sm" | "md" | "hand";
+  size?: "sm" | "md" | "hand" | "lg" | "fill";
   faceDown?: boolean;
+  className?: string;
 }
 
 const sizeClass = {
   sm: "h-11 w-8 text-[10px]",
   md: "h-[4.4rem] w-12 text-xs",
   hand: "h-[5.1rem] w-[3.45rem] text-[13px]",
+  lg: "h-[6.8rem] w-[4.7rem] text-sm",
+  fill: "h-full w-full min-h-0 text-[clamp(1rem,5.2vw,1.55rem)]",
 };
 
 function JokerMark({ className }: { className?: string }) {
@@ -56,11 +59,12 @@ export function CardView({
   disabled,
   size = "md",
   faceDown,
+  className,
 }: CardViewProps) {
   if (faceDown) {
     return (
       <div
-        className={`${sizeClass[size]} card-back rounded-[0.55rem] border border-[#3a0d16]`}
+        className={`${sizeClass[size]} card-back rounded-[0.55rem] border border-[#3a0d16] ${className ?? ""}`}
         aria-hidden
       />
     );
@@ -104,61 +108,75 @@ export function CardView({
           : "text-[#1a1612]";
   const symbol = SUIT_SYMBOL[card.suit];
   const interactive = Boolean(onClick) && !disabled;
+  const faceClass = [
+    sizeClass[size],
+    "card-face relative flex flex-col items-center justify-between rounded-[0.7rem] px-[0.32rem] py-[0.28rem]",
+    "select-none font-semibold touch-manipulation",
+    ink,
+    selected
+      ? size === "fill"
+        ? "ring-[3px] ring-[var(--gold)]"
+        : "-translate-y-3 ring-2 ring-[var(--gold)]"
+      : "",
+    interactive ? "cursor-pointer active:brightness-95" : "cursor-default",
+    className ?? "",
+  ].join(" ");
+
+  const body = kind === "joker" ? (
+    <>
+      <span className="min-h-[1em] self-start leading-none">
+        {face ? (
+          <>
+            {face.rank}
+            <span className="text-[0.75em]">{SUIT_SYMBOL[face.suit]}</span>
+          </>
+        ) : null}
+      </span>
+      <JokerMark className="h-[1.55em] w-[1.55em]" />
+      <span className="min-h-[1em] self-end rotate-180 leading-none">
+        {face ? (
+          <>
+            {face.rank}
+            <span className="text-[0.75em]">{SUIT_SYMBOL[face.suit]}</span>
+          </>
+        ) : null}
+      </span>
+    </>
+  ) : special ? (
+    <>
+      <span className="self-start text-[10px] leading-none uppercase">
+        {specialLabel}
+      </span>
+      <span className="text-[1.35em] leading-none">{special}</span>
+      <span className="self-end text-[10px] leading-none uppercase">
+        {specialLabel}
+      </span>
+    </>
+  ) : (
+    <>
+      <span className="self-start leading-none">{card.rank}</span>
+      <span className="text-[1.15em] leading-none">{symbol}</span>
+      <span className="self-end rotate-180 leading-none">{card.rank}</span>
+    </>
+  );
+
+  if (!interactive) {
+    return (
+      <div className={faceClass} aria-hidden={!selected} aria-label={formatCard(card)}>
+        {body}
+      </div>
+    );
+  }
 
   return (
     <button
       type="button"
-      disabled={!interactive}
       onClick={onClick}
-      className={[
-        sizeClass[size],
-        "card-face relative flex flex-col items-center justify-between rounded-[0.55rem] px-[0.28rem] py-[0.22rem]",
-        "select-none font-semibold touch-manipulation",
-        ink,
-        selected ? "-translate-y-3 ring-2 ring-[var(--gold)]" : "",
-        interactive ? "active:brightness-95" : "cursor-default",
-        "disabled:opacity-100",
-      ].join(" ")}
+      className={faceClass}
       aria-pressed={selected}
       aria-label={formatCard(card)}
     >
-      {kind === "joker" ? (
-        <>
-          <span className="min-h-[1em] self-start leading-none">
-            {face ? (
-              <>
-                {face.rank}
-                <span className="text-[0.75em]">{SUIT_SYMBOL[face.suit]}</span>
-              </>
-            ) : null}
-          </span>
-          <JokerMark className="h-[1.55em] w-[1.55em]" />
-          <span className="min-h-[1em] self-end rotate-180 leading-none">
-            {face ? (
-              <>
-                {face.rank}
-                <span className="text-[0.75em]">{SUIT_SYMBOL[face.suit]}</span>
-              </>
-            ) : null}
-          </span>
-        </>
-      ) : special ? (
-        <>
-          <span className="self-start text-[10px] leading-none uppercase">
-            {specialLabel}
-          </span>
-          <span className="text-[1.35em] leading-none">{special}</span>
-          <span className="self-end text-[10px] leading-none uppercase">
-            {specialLabel}
-          </span>
-        </>
-      ) : (
-        <>
-          <span className="self-start leading-none">{card.rank}</span>
-          <span className="text-[1.15em] leading-none">{symbol}</span>
-          <span className="self-end rotate-180 leading-none">{card.rank}</span>
-        </>
-      )}
+      {body}
     </button>
   );
 }

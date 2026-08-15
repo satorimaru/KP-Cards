@@ -245,6 +245,9 @@ export function MultiplayerGame({
               return null;
             });
           }}
+          onBuyIn={() => {
+            void run(() => postRoom(roomId, { action: "buyin", playerId }));
+          }}
         />
         {chat}
       </div>
@@ -253,7 +256,7 @@ export function MultiplayerGame({
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-lg flex-col overflow-hidden px-2 pt-[max(0.4rem,env(safe-area-inset-top))]">
-      <header className="mb-1 flex shrink-0 items-center justify-between px-1 py-1">
+      <header className="mb-1 flex h-9 shrink-0 items-center justify-between px-1">
         <Link href="/tienlen" className="min-h-9 text-xs text-[var(--mute)]">
           {t("nav.home")}
         </Link>
@@ -290,6 +293,16 @@ export function MultiplayerGame({
             () => undefined,
           )
         }
+        onMenu={() => {
+          void run(async () => {
+            await postRoom(roomId, { action: "leave", playerId });
+            router.push("/tienlen");
+            return null;
+          });
+        }}
+        onBuyIn={() => {
+          void run(() => postRoom(roomId, { action: "buyin", playerId }));
+        }}
         onTimeout={onTimeout}
       />
       {chat}

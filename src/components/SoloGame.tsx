@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { BLITZ_MS } from "@/lib/rules";
 import { chooseBotAction } from "@/lib/tienlen/bot";
 import {
@@ -15,8 +16,10 @@ import {
 } from "@/lib/tienlen/engine";
 import type { Card } from "@/lib/tienlen/types";
 import { makePlayEvent } from "@/lib/rooms/playEvent";
-import type { RoomEvent } from "@/lib/rooms/types";
+import type { ChipPay, RoomEvent } from "@/lib/rooms/types";
 import { getSettings } from "@/lib/settings";
+import { parseRules } from "@/lib/rules";
+import { settleChips } from "@/lib/tienlen/chips";
 import {
   HUMAN_ID,
   clampBotCount,
@@ -35,16 +38,68 @@ interface SoloSnapshot {
   hand: HandState;
   lastEvent: RoomEvent | null;
   turnStartedAt: number;
+  chips: number[];
+  buyIns: number[];
+  lastChipPays: ChipPay[];
+  chipsSettled: boolean;
 }
 
 function deal(
   botCount: 1 | 2 | 3,
   rules: HandState["rules"],
+  prev?: SoloSnapshot,
 ): SoloSnapshot {
+  const n = botCount + 1;
+  const parsed = parseRules(rules);
+  const start = parsed.startChips;
+  const keepStacks = Boolean(
+    parsed.chips &&
+      prev &&
+      parseRules(prev.hand.rules).chips &&
+      prev.chips.length === n,
+  );
+  let chips =
+    keepStacks && prev
+      ? [...prev.chips]
+      : Array.from({ length: n }, () => start);
+  let buyIns =
+    keepStacks && prev
+      ? [...prev.buyIns]
+      : Array.from({ length: n }, () => 0);
+  if (parsed.chips) {
+    for (let s = 1; s < n; s++) {
+      if (chips[s] <= 0) {
+        chips[s] += start;
+        buyIns[s] += 1;
+      }
+    }
+  }
   return {
-    hand: createHandState(botCount + 1, Math.random, rules),
+    hand: createHandState(n, Math.random, rules),
     lastEvent: { kind: "start" },
     turnStartedAt: Date.now(),
+    chips,
+    buyIns,
+    lastChipPays: [],
+    chipsSettled: false,
+  };
+}
+
+function finishChips(snap: SoloSnapshot): SoloSnapshot {
+  const parsed = parseRules(snap.hand.rules);
+  if (!parsed.chips || !isGameFinished(snap.hand) || snap.chipsSettled) {
+    return snap;
+  }
+  const settled = settleChips(snap.chips, snap.hand.finishOrder);
+  return {
+    ...snap,
+    chips: settled.chips,
+    chipsSettled: true,
+    lastChipPays: settled.pays.map((pay) => ({
+      fromPlayerId: playerIdForSeat(pay.fromSeat),
+      toPlayerId: playerIdForSeat(pay.toSeat),
+      amount: pay.amount,
+    })),
   };
 }
 
@@ -54,6 +109,7 @@ interface SoloGameProps {
 }
 
 export function SoloGame({ botCount, playerName }: SoloGameProps) {
+  const router = useRouter();
   const { t, rules, setRules } = useApp();
   const bots = clampBotCount(botCount);
   const names = useMemo(
@@ -80,25 +136,28 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
         const playerId = playerIdForSeat(seat);
 
         if (action.type === "pass") {
-          return {
+          return finishChips({
+            ...prev,
             hand: applyPass(current, seat),
             lastEvent: { kind: "pass", playerId },
             turnStartedAt: Date.now(),
-          };
+          });
         }
 
         const check = validatePlay(current, seat, action.cards);
         if (!check.ok) {
           if (!current.pile) return prev;
-          return {
+          return finishChips({
+            ...prev,
             hand: applyPass(current, seat),
             lastEvent: { kind: "pass", playerId },
             turnStartedAt: Date.now(),
-          };
+          });
         }
 
         const next = applyPlay(current, seat, action.cards);
-        return {
+        return finishChips({
+          ...prev,
           hand: next,
           lastEvent: makePlayEvent(
             playerId,
@@ -110,7 +169,7 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
             names.map((name, s) => ({ id: playerIdForSeat(s), seat: s, name })),
           ),
           turnStartedAt: Date.now(),
-        };
+        });
       });
     }, BOT_PAUSE_MS);
 
@@ -119,6 +178,9 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
 
   const room = handToRoomView(solo.hand, names, solo.lastEvent, {
     turnStartedAt: solo.turnStartedAt,
+    chips: solo.chips,
+    buyIns: solo.buyIns,
+    lastChipPays: solo.lastChipPays,
   });
   const botTurn = !isGameFinished(solo.hand) && solo.hand.currentSeat !== 0;
 
@@ -130,19 +192,22 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
     }
     setError(null);
     const next = applyPlay(solo.hand, 0, cards);
-    setSolo({
-      hand: next,
-      lastEvent: makePlayEvent(
-        HUMAN_ID,
-        check.combo.type,
-        cards,
-        solo.hand,
-        next,
-        0,
-        names.map((_, s) => ({ id: playerIdForSeat(s), seat: s })),
-      ),
-      turnStartedAt: Date.now(),
-    });
+    setSolo((prev) =>
+      finishChips({
+        ...prev,
+        hand: next,
+        lastEvent: makePlayEvent(
+          HUMAN_ID,
+          check.combo.type,
+          cards,
+          solo.hand,
+          next,
+          0,
+          names.map((_, s) => ({ id: playerIdForSeat(s), seat: s })),
+        ),
+        turnStartedAt: Date.now(),
+      }),
+    );
   };
 
   const onPass = async () => {
@@ -152,11 +217,14 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
       return;
     }
     setError(null);
-    setSolo({
-      hand: applyPass(solo.hand, 0),
-      lastEvent: { kind: "pass", playerId: HUMAN_ID },
-      turnStartedAt: Date.now(),
-    });
+    setSolo((prev) =>
+      finishChips({
+        ...prev,
+        hand: applyPass(solo.hand, 0),
+        lastEvent: { kind: "pass", playerId: HUMAN_ID },
+        turnStartedAt: Date.now(),
+      }),
+    );
   };
 
   const onTimeout = useCallback(() => {
@@ -167,34 +235,40 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
     if (action.type === "pass") {
       const check = validatePass(state, 0);
       if (!check.ok) return;
-      setSolo({
-        hand: applyPass(state, 0),
-        lastEvent: { kind: "pass", playerId: HUMAN_ID },
-        turnStartedAt: Date.now(),
-      });
+      setSolo((prev) =>
+        finishChips({
+          ...prev,
+          hand: applyPass(state, 0),
+          lastEvent: { kind: "pass", playerId: HUMAN_ID },
+          turnStartedAt: Date.now(),
+        }),
+      );
       return;
     }
     const check = validatePlay(state, 0, action.cards);
     if (!check.ok) return;
     const next = applyPlay(state, 0, action.cards);
-    setSolo({
-      hand: next,
-      lastEvent: makePlayEvent(
-        HUMAN_ID,
-        check.combo.type,
-        action.cards,
-        state,
-        next,
-        0,
-        names.map((_, s) => ({ id: playerIdForSeat(s), seat: s })),
-      ),
-      turnStartedAt: Date.now(),
-    });
+    setSolo((prev) =>
+      finishChips({
+        ...prev,
+        hand: next,
+        lastEvent: makePlayEvent(
+          HUMAN_ID,
+          check.combo.type,
+          action.cards,
+          state,
+          next,
+          0,
+          names.map((_, s) => ({ id: playerIdForSeat(s), seat: s })),
+        ),
+        turnStartedAt: Date.now(),
+      }),
+    );
   }, [solo, names]);
 
   return (
     <div className="mx-auto flex h-dvh w-full max-w-lg flex-col overflow-hidden px-2 pt-[max(0.4rem,env(safe-area-inset-top))]">
-      <header className="mb-1 flex shrink-0 items-center justify-between px-1 py-1">
+      <header className="mb-1 flex h-9 shrink-0 items-center justify-between px-1">
         <Link href="/tienlen" className="min-h-9 text-xs text-[var(--mute)]">
           {t("nav.home")}
         </Link>
@@ -212,14 +286,18 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
           {t("nav.settings")}
         </button>
       </header>
-      <div className="mb-1 flex items-center justify-between px-1">
+      <div className="mb-1 flex h-9 shrink-0 items-center justify-between px-1">
         <LangToggle />
         <button
           type="button"
           className="min-h-9 text-xs text-[var(--mute)]"
           onClick={() => {
             setError(null);
-            setSolo(deal(bots, rules));
+            if (parseRules(rules).chips && (solo.chips[0] ?? 0) <= 0) {
+              setError("err.needChips");
+              return;
+            }
+            setSolo(deal(bots, rules, solo));
           }}
         >
           {t("game.redeal")}
@@ -237,8 +315,25 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
         onTimeout={onTimeout}
         onRematch={async () => {
           setError(null);
-          setSolo(deal(bots, rules));
+          if (parseRules(rules).chips && (solo.chips[0] ?? 0) <= 0) {
+            setError("err.needChips");
+            return;
+          }
+          setError(null);
+          setSolo(deal(bots, rules, solo));
         }}
+        onBuyIn={() => {
+          if ((solo.chips[0] ?? 0) > 0) return;
+          const add = parseRules(rules).startChips;
+          setSolo((prev) => {
+            const chips = [...prev.chips];
+            const buyIns = [...prev.buyIns];
+            chips[0] += add;
+            buyIns[0] += 1;
+            return { ...prev, chips, buyIns };
+          });
+        }}
+        onMenu={() => router.push("/tienlen")}
       />
       <SettingsSheet
         open={settingsOpen}

@@ -46,7 +46,7 @@ export function UnoDirectionBar({
   return (
     <div
       className={[
-        "dir-banner mb-1",
+        "dir-banner",
         reversing ? "uno-dir-flip" : "",
       ].join(" ")}
       aria-label={label}

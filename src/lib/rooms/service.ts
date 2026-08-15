@@ -15,6 +15,7 @@ import { RoomError } from "./errors";
 import { deleteRoom, getRoom, saveRoom, updateRoom, withRoomLock } from "./store";
 import { chooseBotAction } from "@/lib/tienlen/bot";
 import { BLITZ_MS, parseRules, type GameRules } from "@/lib/rules";
+import { settleChips } from "@/lib/tienlen/chips";
 import { makePlayEvent } from "./playEvent";
 import { MAX_CHAT_TEXT, type Room, type RoomPlayer } from "./types";
 
@@ -38,7 +39,38 @@ function makePlayer(id: string, name: string, seat: number): RoomPlayer {
     finishOrder: null,
     lastSeenAt: now(),
     satOut: false,
+    chips: undefined,
+    buyIns: 0,
   };
+}
+
+function seedChips(room: Room, force = false): void {
+  const rules = parseRules(room.rules);
+  if (!rules.chips) return;
+  for (const p of room.players) {
+    if (force || p.chips == null) {
+      p.chips = rules.startChips;
+      if (p.buyIns == null) p.buyIns = 0;
+    }
+  }
+}
+
+function applyChipSettlement(room: Room, finishSeats: number[]): void {
+  const rules = parseRules(room.rules);
+  if (!rules.chips || finishSeats.length < 2) return;
+  const bySeat = Array.from({ length: room.players.length }, () => 0);
+  for (const p of room.players) {
+    bySeat[p.seat] = p.chips ?? rules.startChips;
+  }
+  const settled = settleChips(bySeat, finishSeats);
+  for (const p of room.players) {
+    p.chips = settled.chips[p.seat] ?? 0;
+  }
+  room.lastChipPays = settled.pays.map((pay) => ({
+    fromPlayerId: room.players.find((p) => p.seat === pay.fromSeat)?.id ?? "",
+    toPlayerId: room.players.find((p) => p.seat === pay.toSeat)?.id ?? "",
+    amount: pay.amount,
+  }));
 }
 
 function playerById(room: Room, playerId: string): RoomPlayer | null {
@@ -137,7 +169,10 @@ function applyHandStateToRoom(room: Room, state: HandState): void {
     (seat) => room.players.find((p) => p.seat === seat)!.id,
   );
 
-  if (isGameFinished(state)) {
+  if (isGameFinished(state) && room.status !== "finished") {
+    applyChipSettlement(room, state.finishOrder);
+    room.status = "finished";
+  } else if (isGameFinished(state)) {
     room.status = "finished";
   }
 }
@@ -242,7 +277,9 @@ export async function createRoom(
     discard: [],
     satOut: [],
     trick: [],
+    lastChipPays: [],
   };
+  seedChips(room);
 
   await saveRoom(room);
   return room;
@@ -293,6 +330,7 @@ export async function joinRoom(
     room.players.push(
       makePlayer(playerId, playerName || "Guest", room.players.length),
     );
+    seedChips(room);
     room.lastEvent = { kind: "join", playerId };
   });
 }
@@ -389,6 +427,13 @@ export async function startGame(
     if (room.players.some((p) => !p.ready)) {
       throw new RoomError("All players must be ready", 400);
     }
+    const rules = parseRules(room.rules);
+    if (rules.chips) {
+      seedChips(room);
+      if (room.players.some((p) => (p.chips ?? 0) <= 0)) {
+        throw new RoomError("err.needChips", 400);
+      }
+    }
 
     reseat(room);
     const state = createHandState(
@@ -399,6 +444,7 @@ export async function startGame(
     room.status = "playing";
     room.startedAt = now();
     room.winners = [];
+    room.lastChipPays = [];
     room.turnVersion = 0;
     room.hands = {};
     room.lastEvent = { kind: "start" };
@@ -613,8 +659,34 @@ export async function setRoomRules(
     }
     requirePlayer(room, playerId);
     const next = parseRules(raw);
+    const played = (room.lastChipPays ?? []).length > 0
+      || room.players.some((p) => (p.buyIns ?? 0) > 0);
     room.rules = next;
     if (next.siege) room.maxPlayers = 4;
+    if (next.chips) seedChips(room, !played);
+  });
+}
+
+export async function buyIn(
+  roomId: string,
+  playerId: string,
+): Promise<Room> {
+  return updateRoom(roomId, (room) => {
+    const player = requirePlayer(room, playerId);
+    const rules = parseRules(room.rules);
+    if (!rules.chips) throw new RoomError("err.chipsOff", 400);
+    if (room.status === "playing") {
+      throw new RoomError("Finish the hand before a buy-in", 409);
+    }
+    if ((player.chips ?? 0) > 0) throw new RoomError("err.notBroke", 400);
+    player.chips = (player.chips ?? 0) + rules.startChips;
+    player.buyIns = (player.buyIns ?? 0) + 1;
+    room.lastEvent = {
+      kind: "buyin",
+      playerId,
+      amount: rules.startChips,
+    };
+    touch(room, playerId);
   });
 }
 

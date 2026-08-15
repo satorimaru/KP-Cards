@@ -1,18 +1,72 @@
 "use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useApp } from "@/components/AppProviders";
-import { LangToggle } from "@/components/LangToggle";
 import { ScreenShell } from "@/components/ScreenShell";
+import { useClientMounted } from "@/lib/client";
+import {
+  getOrCreatePlayerId,
+  getPlayerName,
+  setPlayerName,
+} from "@/lib/player";
+import {
+  createSpeedRoomRequest,
+  postSpeedRoom,
+} from "@/lib/speed/rooms/client";
 
-export default function SpeedPlaceholderPage() {
-  const { t } = useApp();
+export default function SpeedHomePage() {
+  const router = useRouter();
+  const mounted = useClientMounted();
+  const { t, te } = useApp();
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const name = nameDraft ?? (mounted ? getPlayerName() : "");
+  const [joinCode, setJoinCode] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const createRoom = async () => {
+    setCreating(true);
+    setError(null);
+    setPlayerName(name);
+    try {
+      const room = await createSpeedRoomRequest({
+        playerId: getOrCreatePlayerId(),
+        playerName: name || "Host",
+      });
+      router.push(`/speed/${room.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? te(e.message) : t("err.createFailed"));
+      setCreating(false);
+    }
+  };
+
+  const joinRoom = async () => {
+    const code = joinCode.trim().toUpperCase();
+    if (!code) {
+      setError(t("home.enterCode"));
+      return;
+    }
+    setJoining(true);
+    setError(null);
+    setPlayerName(name);
+    try {
+      const room = await postSpeedRoom(code, {
+        action: "join",
+        playerId: getOrCreatePlayerId(),
+        playerName: name || "Guest",
+      });
+      if (!room) throw new Error(t("err.joinFailed"));
+      router.push(`/speed/${room.id}`);
+    } catch (e) {
+      setError(e instanceof Error ? te(e.message) : t("err.joinFailed"));
+      setJoining(false);
+    }
+  };
 
   return (
-    <ScreenShell
-      backHref="/"
-      backLabel={t("nav.games")}
-      trailing={<LangToggle />}
-    >
+    <ScreenShell backHref="/" backLabel={t("nav.games")}>
       <header className="mb-8 text-center">
         <p className="text-[11px] uppercase tracking-[0.28em] text-[var(--gold)]">
           {t("speed.tagline")}
@@ -26,26 +80,74 @@ export default function SpeedPlaceholderPage() {
       </header>
 
       <section className="glass-panel rounded-[1.75rem] p-5">
-        <div className="table-felt relative mb-5 flex min-h-[11rem] items-center justify-center overflow-hidden rounded-[1.35rem]">
-          <span
-            className="card-back absolute left-[28%] h-[5.4rem] w-[3.7rem] -rotate-[18deg] rounded-[0.55rem] border border-[#3a0d16]"
-            aria-hidden
-          />
-          <span
-            className="card-back absolute right-[28%] h-[5.4rem] w-[3.7rem] rotate-[16deg] rounded-[0.55rem] border border-[#3a0d16]"
-            aria-hidden
-          />
-          <span className="relative z-10 rounded-full bg-black/45 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--gold)]">
-            {t("app.soon")}
-          </span>
+        <label className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+          {t("home.name")}
+        </label>
+        <input
+          value={name}
+          onChange={(e) => setNameDraft(e.target.value)}
+          maxLength={24}
+          placeholder={t("home.namePlaceholder")}
+          className="field mb-5"
+        />
+
+        <button
+          type="button"
+          onClick={() => {
+            setPlayerName(name);
+            router.push("/speed/solo");
+          }}
+          className="btn-gold mb-5 w-full touch-manipulation"
+        >
+          {t("speed.vsBot")}
+        </button>
+
+        <div className="mb-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[var(--mute)]">
+          <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
+          {t("home.friends")}
+          <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
         </div>
-        <p className="text-center text-sm text-[var(--mute)]">{t("speed.hold")}</p>
-        <button type="button" disabled className="btn-gold mt-5 w-full">
-          {t("home.create")}
+
+        <button
+          type="button"
+          disabled={creating}
+          onClick={() => void createRoom()}
+          className="btn-ghost mb-5 w-full touch-manipulation"
+        >
+          {creating ? t("home.creating") : t("home.create")}
         </button>
-        <button type="button" disabled className="btn-ghost mt-2 w-full">
+
+        <div className="mb-4 flex items-center gap-3 text-[11px] uppercase tracking-[0.16em] text-[var(--mute)]">
+          <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
           {t("home.join")}
-        </button>
+          <span className="h-px flex-1 bg-[rgba(244,234,216,0.1)]" />
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            placeholder={t("home.roomPlaceholder")}
+            className="field min-w-0 flex-1 font-mono tracking-[0.2em]"
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void joinRoom();
+            }}
+          />
+          <button
+            type="button"
+            disabled={joining}
+            onClick={() => void joinRoom()}
+            className="btn-ghost min-w-20 touch-manipulation px-4"
+          >
+            {joining ? "…" : t("home.sit")}
+          </button>
+        </div>
+
+        {error && (
+          <p className="mt-4 rounded-xl bg-[rgba(196,30,58,0.12)] px-3 py-2 text-sm text-[#f0b4bd]">
+            {error}
+          </p>
+        )}
       </section>
     </ScreenShell>
   );

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/AppProviders";
+import { ChipStake } from "@/components/ChipStake";
 import { ModePicker } from "@/components/ModePicker";
 import { ScreenShell } from "@/components/ScreenShell";
 import { SettingsSheet } from "@/components/SettingsSheet";
@@ -121,6 +122,7 @@ export default function TienLenHomePage() {
               }
             }}
           />
+          <ChipStake rules={rules} onChange={setRules} />
         </div>
 
         <label className="mb-2 block text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">

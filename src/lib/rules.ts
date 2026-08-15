@@ -1,3 +1,5 @@
+import { DEFAULT_START_CHIPS, parseStartChips } from "./tienlen/chips";
+
 export interface GameRules {
   /** 3-player deals use 17 cards when on; 13 when off. 2 and 4 stay at 13. */
   threePlayerSeventeen: boolean;
@@ -13,6 +15,10 @@ export interface GameRules {
   uno: boolean;
   /** If on, a pass does not sit you out — you can play when it comes back. */
   playAfterPass: boolean;
+  /** Players hold chips and pay by place after each hand. */
+  chips: boolean;
+  /** Stack each player starts with, and the buy-in amount. */
+  startChips: number;
 }
 
 export const DEFAULT_RULES: GameRules = {
@@ -23,6 +29,8 @@ export const DEFAULT_RULES: GameRules = {
   siege: false,
   uno: false,
   playAfterPass: false,
+  chips: false,
+  startChips: 10,
 };
 
 export const BLITZ_MS = 8000;
@@ -40,6 +48,8 @@ export function parseRules(input: unknown): GameRules {
     siege: raw.siege === true,
     uno: raw.uno === true || raw.powerup === true,
     playAfterPass: raw.playAfterPass === true,
+    chips: raw.chips === true,
+    startChips: parseStartChips(raw.startChips ?? DEFAULT_START_CHIPS),
   };
 }
 

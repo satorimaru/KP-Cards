@@ -8,20 +8,29 @@ interface ResultModalProps {
   room: RoomView;
   playerId: string;
   onRematch: () => void;
+  onBuyIn?: () => void;
+  onMenu?: () => void;
   busy?: boolean;
   rematchLabel?: string;
   rematchHint?: string;
+  menuLabel?: string;
 }
 
 export function ResultModal({
   room,
   playerId,
   onRematch,
+  onBuyIn,
+  onMenu,
   busy,
   rematchLabel,
   rematchHint,
+  menuLabel,
 }: ResultModalProps) {
   const { t } = useApp();
+  const chipsOn = Boolean(room.rules?.chips);
+  const me = room.players.find((p) => p.id === playerId);
+  const broke = chipsOn && (me?.chips ?? 0) <= 0;
   const ranked = room.winners
     .map((id) => room.players.find((p) => p.id === id))
     .filter(Boolean);
@@ -76,17 +85,83 @@ export function ResultModal({
             </li>
           ))}
         </ol>
+        {chipsOn && (
+          <ul className="mt-4 space-y-1.5">
+            {room.players
+              .slice()
+              .sort((a, b) => (b.chips ?? 0) - (a.chips ?? 0))
+              .map((p) => {
+                const delta = (room.lastChipPays ?? []).reduce((n, pay) => {
+                  if (pay.toPlayerId === p.id) return n + pay.amount;
+                  if (pay.fromPlayerId === p.id) return n - pay.amount;
+                  return n;
+                }, 0);
+                return (
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between text-sm text-[var(--ivory)]"
+                  >
+                    <span>
+                      {p.name}
+                      {(p.buyIns ?? 0) > 0 && (
+                        <span className="ml-1 text-[10px] text-[var(--gold)]">
+                          ↻{p.buyIns}
+                        </span>
+                      )}
+                    </span>
+                    <span className="font-semibold tabular-nums">
+                      {delta !== 0 && (
+                        <span
+                          className={
+                            delta > 0
+                              ? "mr-2 text-[var(--gold)]"
+                              : "mr-2 text-[#f0b4bd]"
+                          }
+                        >
+                          {delta > 0 ? `+${delta}` : delta}
+                        </span>
+                      )}
+                      {p.chips ?? 0}
+                    </span>
+                  </li>
+                );
+              })}
+          </ul>
+        )}
+        {broke && onBuyIn && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onBuyIn}
+            className="btn-gold mt-6 w-full"
+          >
+            {t("chips.buyIn", { n: room.rules?.startChips ?? 10 })}
+          </button>
+        )}
         <button
           type="button"
-          disabled={busy}
+          disabled={busy || broke}
           onClick={onRematch}
-          className="btn-gold mt-6 w-full"
+          className={[
+            "w-full",
+            broke && onBuyIn ? "btn-ghost mt-2" : "btn-gold mt-6",
+          ].join(" ")}
         >
           {rematchLabel ?? t("result.lobby")}
         </button>
         <p className="mt-3 text-center text-xs text-[var(--mute)]">
-          {rematchHint ?? t("result.lobbyHint")}
+          {broke ? t("chips.broke") : rematchHint ?? t("result.lobbyHint")}
         </p>
+        {onMenu && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onMenu}
+            className="btn-ghost mt-3 w-full"
+          >
+            {menuLabel ?? t("result.menu")}
+          </button>
+        )}
       </div>
     </div>
   );

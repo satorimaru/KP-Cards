@@ -35,7 +35,7 @@ export function Hand({ cards, selected, onToggle, disabled }: HandProps) {
   return (
     <div
       ref={scroller}
-      className="flex overflow-x-auto overflow-y-visible px-1 pt-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="dock-hand flex overflow-x-auto overflow-y-hidden px-1 pt-6 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {cards.map((card, i) => {
         const id = cardId(card);
@@ -46,7 +46,7 @@ export function Hand({ cards, selected, onToggle, disabled }: HandProps) {
             className="relative shrink-0"
             style={{
               marginLeft: i === 0 ? 0 : step - CARD_WIDTH,
-              zIndex: isSelected ? 50 : i + 1,
+              zIndex: i + 1,
             }}
           >
             <CardView

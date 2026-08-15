@@ -14,6 +14,16 @@ export interface RoomPlayer {
   lastSeenAt: number;
   /** Passed this trick; sat out until the next lead (unless playAfterPass). */
   satOut: boolean;
+  /** Chip stack when Chips mode is on. */
+  chips?: number;
+  /** Times this player bought back in after going broke. */
+  buyIns?: number;
+}
+
+export interface ChipPay {
+  fromPlayerId: string;
+  toPlayerId: string;
+  amount: number;
 }
 
 export type RoomEvent =
@@ -36,7 +46,8 @@ export type RoomEvent =
       uno?: "skip" | "reverse" | "draw2" | "draw4";
     }
   | { kind: "pass"; playerId: string }
-  | { kind: "rematch" };
+  | { kind: "rematch" }
+  | { kind: "buyin"; playerId: string; amount: number };
 
 export interface ChatMessage {
   id: string;
@@ -82,6 +93,8 @@ export interface Room {
   discard: Card[];
   /** Seats that passed this trick. */
   satOut: number[];
+  /** Chip pays from the hand that just finished. */
+  lastChipPays?: ChipPay[];
 }
 
 export interface RoomView {
@@ -108,6 +121,7 @@ export interface RoomView {
   turnStartedAt: number | null;
   startedAt: number | null;
   createdAt: number;
+  lastChipPays?: ChipPay[];
   you: string | null;
   usingRedis: boolean;
 }
