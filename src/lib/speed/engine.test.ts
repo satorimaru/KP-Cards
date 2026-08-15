@@ -13,7 +13,12 @@ import {
   sortHand,
 } from "./engine";
 import { SPEED_DEAL, SPEED_HAND, SPEED_SORT_MS, SPEED_STOCK } from "./types";
-import { optimisticDraw, optimisticPlay, toSpeedView } from "./view";
+import {
+  applyPendingOps,
+  optimisticDraw,
+  optimisticPlay,
+  toSpeedView,
+} from "./view";
 import type { Card } from "@/lib/tienlen/types";
 import type { SpeedState } from "./types";
 
@@ -173,6 +178,17 @@ describe("speed play", () => {
     expect(view.hand).toHaveLength(3);
     expect(view.hand[2]).toEqual(c("J", "C"));
     expect(view.pileCount).toBe(1);
+  });
+
+  it("keeps a pending draw when a stale snapshot arrives", () => {
+    const state = playingAt([c("7", "H"), c("K", "S")], [
+      [c("8", "C"), c("4", "D")],
+      [c("5", "S")],
+    ]);
+    const stale = toSpeedView(state, 0);
+    const shown = applyPendingOps(stale, [{ kind: "draw" }]);
+    expect(shown.hand).toHaveLength(3);
+    expect(shown.hand[2]).toEqual(c("J", "C"));
   });
 
   it("rejects a card that is not adjacent", () => {

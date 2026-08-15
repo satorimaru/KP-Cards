@@ -16,7 +16,7 @@ export function ScreenShell({
   trailing?: ReactNode;
 }) {
   return (
-    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:justify-center">
+    <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-end px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(1.25rem,env(safe-area-inset-bottom),var(--kb,0px))] sm:justify-center">
       <div className="mb-4 flex items-center justify-between gap-3">
         {backHref && backLabel ? (
           <Link

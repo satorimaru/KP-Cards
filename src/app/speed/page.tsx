@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useApp } from "@/components/AppProviders";
 import { ScreenShell } from "@/components/ScreenShell";
-import { useClientMounted } from "@/lib/client";
+import { revealField, useClientMounted } from "@/lib/client";
 import {
   getOrCreatePlayerId,
   getPlayerName,
@@ -129,6 +129,7 @@ export default function SpeedHomePage() {
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
             placeholder={t("home.roomPlaceholder")}
             className="field min-w-0 flex-1 font-mono tracking-[0.2em]"
+            onFocus={(e) => revealField(e.currentTarget)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void joinRoom();
             }}

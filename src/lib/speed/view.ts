@@ -118,3 +118,27 @@ export function optimisticSort(view: SpeedView, now: number = Date.now()): Speed
     sortUntil: now + SPEED_SORT_MS,
   };
 }
+
+export type SpeedPendingOp =
+  | { kind: "play"; card: Card; pile: 0 | 1 }
+  | { kind: "draw" }
+  | { kind: "sort" }
+  | { kind: "next" };
+
+export function applyPendingOps(
+  view: SpeedView,
+  ops: SpeedPendingOp[],
+): SpeedView {
+  return ops.reduce((next, op) => {
+    if (op.kind === "play") return optimisticPlay(next, op.card, op.pile);
+    if (op.kind === "draw") return optimisticDraw(next);
+    if (op.kind === "sort") {
+      const sorted = optimisticSort(next);
+      return {
+        ...sorted,
+        sortUntil: Math.max(next.sortUntil, sorted.sortUntil),
+      };
+    }
+    return optimisticNext(next);
+  }, view);
+}

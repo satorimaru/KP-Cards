@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { MultiplayerGame } from "@/components/MultiplayerGame";
-import { useClientMounted } from "@/lib/client";
+import { revealField, useClientMounted } from "@/lib/client";
 import { useApp } from "@/components/AppProviders";
 import {
   getOrCreatePlayerId,
@@ -56,6 +56,7 @@ export default function TienLenRoomPage() {
             maxLength={24}
             placeholder={t("home.name")}
             className="field mt-5"
+            onFocus={(e) => revealField(e.currentTarget)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && nameDraft.trim()) {
                 setPlayerName(nameDraft);

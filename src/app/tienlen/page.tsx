@@ -7,7 +7,7 @@ import { ChipStake } from "@/components/ChipStake";
 import { ModePicker } from "@/components/ModePicker";
 import { ScreenShell } from "@/components/ScreenShell";
 import { SettingsSheet } from "@/components/SettingsSheet";
-import { useClientMounted } from "@/lib/client";
+import { revealField, useClientMounted } from "@/lib/client";
 import { createRoomRequest, postRoom } from "@/lib/rooms/client";
 import {
   getOrCreatePlayerId,
@@ -209,6 +209,7 @@ export default function TienLenHomePage() {
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
             placeholder={t("home.roomPlaceholder")}
             className="field min-w-0 flex-1 font-mono tracking-[0.2em]"
+            onFocus={(e) => revealField(e.currentTarget)}
             onKeyDown={(e) => {
               if (e.key === "Enter") void joinRoom();
             }}

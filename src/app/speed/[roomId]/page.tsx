@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { SpeedMultiplayer } from "@/components/speed/SpeedMultiplayer";
-import { useClientMounted } from "@/lib/client";
+import { revealField, useClientMounted } from "@/lib/client";
 import { useApp } from "@/components/AppProviders";
 import {
   getOrCreatePlayerId,
@@ -55,6 +55,7 @@ export default function SpeedRoomPage() {
             maxLength={24}
             placeholder={t("home.name")}
             className="field mt-5"
+            onFocus={(e) => revealField(e.currentTarget)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && nameDraft.trim()) {
                 setPlayerName(nameDraft);

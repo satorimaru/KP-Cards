@@ -15,6 +15,7 @@ import {
   type Locale,
   type MessageKey,
 } from "@/lib/i18n";
+import { useKeyboardInset } from "@/lib/client";
 import { parseRules, type GameRules } from "@/lib/rules";
 import { getSettings, updateSettings } from "@/lib/settings";
 
@@ -32,6 +33,7 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProviders({ children }: { children: ReactNode }) {
+  useKeyboardInset();
   const [locale, setLocaleState] = useState<Locale>(() =>
     typeof window === "undefined" ? "en" : getSettings().locale,
   );

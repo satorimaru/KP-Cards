@@ -80,6 +80,8 @@ button:disabled {
   padding: 0.85rem 1rem;
   font-size: 1rem;
   outline: none;
+  scroll-margin-bottom: 40vh;
+  scroll-margin-top: 6rem;
 }
 
 .field::placeholder {

@@ -11,10 +11,8 @@ import {
 } from "@/lib/speed/rooms/client";
 import type { SpeedRoomView } from "@/lib/speed/rooms/types";
 import {
-  optimisticDraw,
-  optimisticNext,
-  optimisticPlay,
-  optimisticSort,
+  applyPendingOps,
+  type SpeedPendingOp,
 } from "@/lib/speed/view";
 import type { Card } from "@/lib/tienlen/types";
 import { useApp } from "../AppProviders";
@@ -46,28 +44,33 @@ export function SpeedMultiplayer({
     ? `${window.location.origin}/speed/${roomId}`
     : `/speed/${roomId}`;
   const roomRef = useRef<SpeedRoomView | null>(null);
+  const serverRoom = useRef<SpeedRoomView | null>(null);
   const serverRev = useRef(0);
-  const pending = useRef(0);
+  const pendingOps = useRef<SpeedPendingOp[]>([]);
+
+  const show = (server: SpeedRoomView) => {
+    const view =
+      server.view && pendingOps.current.length > 0
+        ? applyPendingOps(server.view, pendingOps.current)
+        : server.view;
+    const shown = view && view !== server.view ? { ...server, view } : server;
+    roomRef.current = shown;
+    setRoom(shown);
+  };
 
   const applyRoom = useCallback((next: SpeedRoomView) => {
     if (next.revision < serverRev.current) return;
-    if (next.revision === serverRev.current && pending.current > 0) return;
     if (
       next.revision === serverRev.current &&
-      roomRef.current?.status === next.status &&
-      pending.current === 0
+      pendingOps.current.length === 0 &&
+      roomRef.current?.status === next.status
     ) {
       return;
     }
     serverRev.current = next.revision;
-    roomRef.current = next;
-    setRoom(next);
+    serverRoom.current = next;
+    show(next);
   }, []);
-
-  const paint = (next: SpeedRoomView) => {
-    roomRef.current = next;
-    setRoom(next);
-  };
 
   useEffect(() => {
     let cancelled = false;
@@ -139,27 +142,21 @@ export function SpeedMultiplayer({
   };
 
   const act = async (
-    preview: (current: SpeedRoomView) => SpeedRoomView,
+    op: SpeedPendingOp,
     fn: () => Promise<SpeedRoomView | null>,
   ) => {
-    const snap = roomRef.current;
-    if (snap) {
-      pending.current += 1;
-      paint(preview(snap));
-    }
+    pendingOps.current = [...pendingOps.current, op];
+    if (serverRoom.current) show(serverRoom.current);
     try {
       const next = await fn();
+      pendingOps.current = pendingOps.current.filter((item) => item !== op);
       if (next) applyRoom(next);
+      else if (serverRoom.current) show(serverRoom.current);
       setError(null);
     } catch (e) {
-      if (snap) {
-        roomRef.current = snap;
-        setRoom(snap);
-        serverRev.current = snap.revision;
-      }
+      pendingOps.current = pendingOps.current.filter((item) => item !== op);
+      if (serverRoom.current) show(serverRoom.current);
       setError(e instanceof Error ? e.message : t("err.requestFailed"));
-    } finally {
-      pending.current = Math.max(0, pending.current - 1);
     }
   };
 
@@ -237,39 +234,23 @@ export function SpeedMultiplayer({
         busy={busy}
         error={error}
         onPlay={(card: Card, pile) => {
-          void act(
-            (current) =>
-              current.view
-                ? { ...current, view: optimisticPlay(current.view, card, pile) }
-                : current,
-            () => postSpeedRoom(roomId, speedPlayBody(playerId, card, pile)),
+          void act({ kind: "play", card, pile }, () =>
+            postSpeedRoom(roomId, speedPlayBody(playerId, card, pile)),
           );
         }}
         onDraw={() => {
-          void act(
-            (current) =>
-              current.view
-                ? { ...current, view: optimisticDraw(current.view) }
-                : current,
-            () => postSpeedRoom(roomId, { action: "draw", playerId }),
+          void act({ kind: "draw" }, () =>
+            postSpeedRoom(roomId, { action: "draw", playerId }),
           );
         }}
         onSort={() => {
-          void act(
-            (current) =>
-              current.view
-                ? { ...current, view: optimisticSort(current.view) }
-                : current,
-            () => postSpeedRoom(roomId, { action: "sort", playerId }),
+          void act({ kind: "sort" }, () =>
+            postSpeedRoom(roomId, { action: "sort", playerId }),
           );
         }}
         onNext={() => {
-          void act(
-            (current) =>
-              current.view
-                ? { ...current, view: optimisticNext(current.view) }
-                : current,
-            () => postSpeedRoom(roomId, { action: "next", playerId }),
+          void act({ kind: "next" }, () =>
+            postSpeedRoom(roomId, { action: "next", playerId }),
           );
         }}
         onReady={() => {
