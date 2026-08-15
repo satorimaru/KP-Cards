@@ -13,6 +13,7 @@ import {
   sortHand,
 } from "./engine";
 import { SPEED_DEAL, SPEED_HAND, SPEED_SORT_MS, SPEED_STOCK } from "./types";
+import { optimisticPlay, toSpeedView } from "./view";
 import type { Card } from "@/lib/tienlen/types";
 import type { SpeedState } from "./types";
 
@@ -149,6 +150,18 @@ describe("speed play", () => {
     if (!right.ok) return;
     expect(right.state.piles[0].live).toEqual(c("7", "H"));
     expect(right.state.piles[1].live).toEqual(c("8", "C"));
+  });
+
+  it("paints a play on the chosen pile without waiting for a server", () => {
+    const state = playingAt([c("7", "H"), c("K", "S")], [
+      [c("8", "C"), c("4", "D"), c("A", "H"), c("2", "C")],
+      [c("5", "S"), c("9", "C"), c("10", "D"), c("J", "H")],
+    ]);
+    const view = optimisticPlay(toSpeedView(state, 0), c("8", "C"), 0);
+    expect(view.piles[0].live).toEqual(c("8", "C"));
+    expect(view.piles[1].live).toEqual(c("K", "S"));
+    expect(view.hand).toHaveLength(3);
+    expect(view.next).toBe(false);
   });
 
   it("rejects a card that is not adjacent", () => {

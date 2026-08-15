@@ -10,12 +10,17 @@ import {
   speedPlayBody,
 } from "@/lib/speed/rooms/client";
 import type { SpeedRoomView } from "@/lib/speed/rooms/types";
+import {
+  optimisticNext,
+  optimisticPlay,
+  optimisticSort,
+} from "@/lib/speed/view";
 import type { Card } from "@/lib/tienlen/types";
 import { useApp } from "../AppProviders";
 import { SpeedLobby } from "./SpeedLobby";
 import { SpeedTable } from "./SpeedTable";
 
-const PLAY_POLL_MS = 180;
+const PLAY_POLL_MS = 70;
 const LOBBY_POLL_MS = 800;
 
 interface SpeedMultiplayerProps {
@@ -40,15 +45,28 @@ export function SpeedMultiplayer({
     ? `${window.location.origin}/speed/${roomId}`
     : `/speed/${roomId}`;
   const roomRef = useRef<SpeedRoomView | null>(null);
+  const serverRev = useRef(0);
+  const pending = useRef(0);
 
   const applyRoom = useCallback((next: SpeedRoomView) => {
-    const prev = roomRef.current;
-    if (prev && prev.revision === next.revision && prev.status === next.status) {
+    if (next.revision < serverRev.current) return;
+    if (next.revision === serverRev.current && pending.current > 0) return;
+    if (
+      next.revision === serverRev.current &&
+      roomRef.current?.status === next.status &&
+      pending.current === 0
+    ) {
       return;
     }
+    serverRev.current = next.revision;
     roomRef.current = next;
     setRoom(next);
   }, []);
+
+  const paint = (next: SpeedRoomView) => {
+    roomRef.current = next;
+    setRoom(next);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -82,26 +100,32 @@ export function SpeedMultiplayer({
   }, [roomId, playerId, playerName, applyRoom, t, te]);
 
   useEffect(() => {
-    if (!room) return;
     let cancelled = false;
-    const tick = async () => {
+    let timer = 0;
+    const loop = async () => {
       try {
         const next = await fetchSpeedRoom(roomId, playerId);
         if (!cancelled) applyRoom(next);
       } catch {
         /* keep last */
       }
+      if (!cancelled) {
+        const playing = roomRef.current?.status === "playing";
+        timer = window.setTimeout(loop, playing ? PLAY_POLL_MS : LOBBY_POLL_MS);
+      }
     };
-    const ms = room.status === "playing" ? PLAY_POLL_MS : LOBBY_POLL_MS;
-    const id = window.setInterval(() => void tick(), ms);
+    timer = window.setTimeout(loop, 40);
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      window.clearTimeout(timer);
     };
-  }, [room, roomId, playerId, applyRoom]);
+  }, [roomId, playerId, applyRoom]);
 
-  const run = async (fn: () => Promise<SpeedRoomView | null>) => {
-    setBusy(true);
+  const run = async (
+    fn: () => Promise<SpeedRoomView | null>,
+    opts?: { lock?: boolean },
+  ) => {
+    if (opts?.lock) setBusy(true);
     try {
       const next = await fn();
       if (next) applyRoom(next);
@@ -109,7 +133,32 @@ export function SpeedMultiplayer({
     } catch (e) {
       setError(e instanceof Error ? e.message : t("err.requestFailed"));
     } finally {
-      setBusy(false);
+      if (opts?.lock) setBusy(false);
+    }
+  };
+
+  const act = async (
+    preview: (current: SpeedRoomView) => SpeedRoomView,
+    fn: () => Promise<SpeedRoomView | null>,
+  ) => {
+    const snap = roomRef.current;
+    if (snap) {
+      pending.current += 1;
+      paint(preview(snap));
+    }
+    try {
+      const next = await fn();
+      if (next) applyRoom(next);
+      setError(null);
+    } catch (e) {
+      if (snap) {
+        roomRef.current = snap;
+        setRoom(snap);
+        serverRev.current = snap.revision;
+      }
+      setError(e instanceof Error ? e.message : t("err.requestFailed"));
+    } finally {
+      pending.current = Math.max(0, pending.current - 1);
     }
   };
 
@@ -146,7 +195,7 @@ export function SpeedMultiplayer({
               await postSpeedRoom(roomId, { action: "leave", playerId });
               router.push("/speed");
               return null;
-            });
+            }, { lock: true });
           }}
         />
       </div>
@@ -174,7 +223,7 @@ export function SpeedMultiplayer({
               await postSpeedRoom(roomId, { action: "leave", playerId });
               router.push("/speed");
               return null;
-            });
+            }, { lock: true });
           }}
         >
           {t("lobby.leave")}
@@ -187,18 +236,34 @@ export function SpeedMultiplayer({
         busy={busy}
         error={error}
         onPlay={(card: Card, pile) => {
-          void run(() =>
-            postSpeedRoom(roomId, speedPlayBody(playerId, card, pile)),
+          void act(
+            (current) =>
+              current.view
+                ? { ...current, view: optimisticPlay(current.view, card, pile) }
+                : current,
+            () => postSpeedRoom(roomId, speedPlayBody(playerId, card, pile)),
           );
         }}
         onDraw={() => {
           void run(() => postSpeedRoom(roomId, { action: "draw", playerId }));
         }}
         onSort={() => {
-          void run(() => postSpeedRoom(roomId, { action: "sort", playerId }));
+          void act(
+            (current) =>
+              current.view
+                ? { ...current, view: optimisticSort(current.view) }
+                : current,
+            () => postSpeedRoom(roomId, { action: "sort", playerId }),
+          );
         }}
         onNext={() => {
-          void run(() => postSpeedRoom(roomId, { action: "next", playerId }));
+          void act(
+            (current) =>
+              current.view
+                ? { ...current, view: optimisticNext(current.view) }
+                : current,
+            () => postSpeedRoom(roomId, { action: "next", playerId }),
+          );
         }}
         onReady={() => {
           void run(() =>
@@ -206,14 +271,17 @@ export function SpeedMultiplayer({
           );
         }}
         onRematch={() => {
-          void run(() => postSpeedRoom(roomId, { action: "rematch", playerId }));
+          void run(
+            () => postSpeedRoom(roomId, { action: "rematch", playerId }),
+            { lock: true },
+          );
         }}
         onMenu={() => {
           void run(async () => {
             await postSpeedRoom(roomId, { action: "leave", playerId });
             router.push("/speed");
             return null;
-          });
+          }, { lock: true });
         }}
       />
     </div>

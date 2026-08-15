@@ -1,6 +1,13 @@
-import { SPEED_DEAL, SPEED_REVEAL_AT, type SpeedState, type SpeedStatus } from "./types";
+import { sameCard, type Card } from "@/lib/tienlen/types";
 import { remainingOf } from "./engine";
-import type { Card } from "@/lib/tienlen/types";
+import { sortSpeedHand } from "./ranks";
+import {
+  SPEED_DEAL,
+  SPEED_REVEAL_AT,
+  SPEED_SORT_MS,
+  type SpeedState,
+  type SpeedStatus,
+} from "./types";
 
 export interface SpeedOppView {
   remaining: number;
@@ -61,4 +68,38 @@ export function toSpeedView(
 
 export function meterTicks(remaining: number, max = SPEED_DEAL): boolean[] {
   return Array.from({ length: max }, (_, i) => i < remaining);
+}
+
+export function optimisticPlay(
+  view: SpeedView,
+  card: Card,
+  pile: 0 | 1,
+): SpeedView {
+  const hand = view.hand.filter((held) => !sameCard(held, card));
+  const piles: SpeedView["piles"] = [
+    { ...view.piles[0] },
+    { ...view.piles[1] },
+  ];
+  piles[pile] = { ...piles[pile], live: card };
+  const leftover = hand.length + view.pileCount;
+  return {
+    ...view,
+    hand,
+    next: false,
+    piles,
+    status: leftover === 0 ? "finished" : view.status,
+    winnerSeat: leftover === 0 ? view.you : view.winnerSeat,
+  };
+}
+
+export function optimisticNext(view: SpeedView): SpeedView {
+  return { ...view, next: true };
+}
+
+export function optimisticSort(view: SpeedView, now: number = Date.now()): SpeedView {
+  return {
+    ...view,
+    hand: sortSpeedHand(view.hand),
+    sortUntil: now + SPEED_SORT_MS,
+  };
 }

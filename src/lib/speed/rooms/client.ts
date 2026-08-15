@@ -7,6 +7,7 @@ export async function fetchSpeedRoom(
 ): Promise<SpeedRoomView> {
   const res = await fetch(
     `/api/speed/rooms/${encodeURIComponent(roomId)}?playerId=${encodeURIComponent(playerId)}`,
+    { cache: "no-store" },
   );
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Room not found");

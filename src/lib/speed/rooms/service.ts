@@ -71,9 +71,13 @@ export async function getSpeedRoomForPlayer(
   const seated = room.players.find((p) => p.id === playerId);
   if (!seated) return room;
   if (now() - seated.lastSeenAt < 4000) return room;
-  return updateSpeedRoom(roomId, (latest) => {
+  return withSpeedLock(roomId, async () => {
+    const latest = await getSpeedRoom(roomId);
+    if (!latest) throw new RoomError("Room not found", 404);
     const player = latest.players.find((p) => p.id === playerId);
     if (player) player.lastSeenAt = now();
+    await saveSpeedRoom(latest);
+    return latest;
   });
 }
 
