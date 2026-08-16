@@ -200,6 +200,9 @@ function siegeTeamDone(state: HandState, team: 0 | 1): boolean {
 }
 
 function finishOrderComplete(state: HandState): boolean {
+  if (state.rules.fifty) {
+    return state.finishOrder.length >= 1;
+  }
   if (state.rules.siege && state.playerCount === 4) {
     return siegeTeamDone(state, 0) || siegeTeamDone(state, 1);
   }
@@ -223,10 +226,16 @@ function completeFinishOrder(state: HandState, finishOrder: number[]): number[] 
       );
     return [...next, ...leftover];
   }
-  if (next.length >= state.playerCount - 1) {
+  if (state.rules.fifty ? next.length >= 1 : next.length >= state.playerCount - 1) {
+    const leftover = [];
     for (let s = 0; s < state.playerCount; s++) {
-      if (!next.includes(s)) next.push(s);
+      if (!next.includes(s)) leftover.push(s);
     }
+    leftover.sort(
+      (a, b) =>
+        (state.hands[a]?.length ?? 0) - (state.hands[b]?.length ?? 0),
+    );
+    return [...next, ...leftover];
   }
   return next;
 }

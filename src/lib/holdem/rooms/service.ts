@@ -5,6 +5,7 @@ import {
   createTable,
   dealHand,
   rebuy,
+  showCards,
 } from "../engine";
 import type { HoldemActionKind } from "../types";
 import {
@@ -86,6 +87,7 @@ export async function joinHoldemRoom(
       allIn: false,
       sittingOut: false,
       isBot: false,
+      shown: false,
     });
   });
 }
@@ -159,6 +161,19 @@ export async function dealHoldemRoom(
   return updateHoldemRoom(roomId, (room) => {
     if (room.hostId !== playerId) throw new RoomError("Only the host can start", 403);
     const result = dealHand(room.state);
+    if (!result.ok) throw new RoomError(result.error, 400);
+    room.state = result.state;
+  });
+}
+
+export async function showHoldem(
+  roomId: string,
+  playerId: string,
+): Promise<HoldemRoom> {
+  return updateHoldemRoom(roomId, (room) => {
+    const player = room.players.find((p) => p.id === playerId);
+    if (!player) throw new RoomError("Not a player in this room", 403);
+    const result = showCards(room.state, player.seat);
     if (!result.ok) throw new RoomError(result.error, 400);
     room.state = result.state;
   });

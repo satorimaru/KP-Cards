@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cardId, type Card } from "@/lib/tienlen/types";
 import { SPEED_HAND } from "@/lib/speed/types";
 import { cardsAdjacent } from "@/lib/speed/ranks";
 import { meterTicks, type SpeedView } from "@/lib/speed/view";
+import { playSfx, type SfxName } from "@/lib/sfx";
 import { useApp } from "../AppProviders";
 import { CardView } from "../CardView";
+import { useSfxWatch } from "../useSfx";
 
 interface SpeedTableProps {
   view: SpeedView;
@@ -37,9 +39,32 @@ export function SpeedTable({
   onRematch,
   onMenu,
 }: SpeedTableProps) {
-  const { t, te } = useApp();
+  const { t, te, sound } = useApp();
   const [selected, setSelected] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const liveSig = `${view.piles[0].live ? cardId(view.piles[0].live) : "-"}|${
+    view.piles[1].live ? cardId(view.piles[1].live) : "-"
+  }`;
+  useSfxWatch(liveSig, view.status === "playing" ? "play" : null);
+  const prevPile = useRef<number | null>(null);
+  useEffect(() => {
+    const n = view.pileCount;
+    if (prevPile.current != null && n < prevPile.current && sound) {
+      playSfx("draw", `draw|${n}`);
+    }
+    prevPile.current = n;
+  }, [view.pileCount, sound]);
+  useSfxWatch(view.next ? "next-on" : "next-off", view.next ? "check" : null);
+  const endName: SfxName | null =
+    view.status === "finished"
+      ? view.winnerSeat === view.you
+        ? "win"
+        : "lose"
+      : null;
+  useSfxWatch(
+    view.status === "finished" ? `end|${view.winnerSeat}` : "",
+    endName,
+  );
 
   const sorting = view.sortUntil > now;
   useEffect(() => {

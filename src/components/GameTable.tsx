@@ -17,7 +17,10 @@ import {
   type Rank,
   type Suit,
 } from "@/lib/tienlen/types";
+import { eventSignature } from "./fxEvent";
 import { useApp } from "./AppProviders";
+import { useSfxWatch } from "./useSfx";
+import type { SfxName } from "@/lib/sfx";
 import { CardDeal, CardThrow, useCardThrow } from "./CardThrow";
 import { CardView } from "./CardView";
 import { Hand } from "./Hand";
@@ -78,6 +81,27 @@ export function GameTable({
   menuLabel,
   onTimeout,
 }: GameTableProps) {
+  const playSfxName: SfxName | null = (() => {
+    const e = room.lastEvent;
+    if (!e) return null;
+    if (e.kind === "pass") return "pass";
+    if (e.kind === "start") return "deal";
+    if (e.kind === "play") {
+      if (e.bombed) return "bomb";
+      if (e.uno) return "uno";
+      return "play";
+    }
+    return null;
+  })();
+  useSfxWatch(eventSignature(room.lastEvent), playSfxName);
+  useSfxWatch(
+    room.status === "finished" ? `end|${room.winners.join(",")}` : "",
+    room.status === "finished"
+      ? room.winners[0] === playerId
+        ? "win"
+        : "lose"
+      : null,
+  );
   const { t, te } = useApp();
   const [selected, setSelected] = useState<string[]>([]);
   const [jokerFace, setJokerFace] = useState<
@@ -397,6 +421,11 @@ export function GameTable({
                 {(p.buyIns ?? 0) > 0 ? ` ↻${p.buyIns}` : ""}
               </p>
             )}
+            {rules.fifty && (
+              <p className="h-3 w-full truncate text-[10px] tabular-nums text-[var(--gold)]">
+                {p.fiftyScore ?? 0}
+              </p>
+            )}
             <div className="mt-0.5 flex h-4 items-center justify-center gap-1">
               {p.finishOrder != null ? (
                 <span className="text-[10px] font-semibold text-[var(--gold)]">
@@ -584,6 +613,11 @@ export function GameTable({
               <span className="ml-2 tabular-nums text-[var(--gold)]">
                 {me?.chips ?? 0}
                 {(me?.buyIns ?? 0) > 0 ? ` ↻${me?.buyIns}` : ""}
+              </span>
+            )}
+            {rules.fifty && (
+              <span className="ml-2 tabular-nums text-[var(--gold)]">
+                {me?.fiftyScore ?? 0}
               </span>
             )}
             {room.status === "playing" && me?.finishOrder == null && (

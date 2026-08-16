@@ -18,6 +18,10 @@ export interface RoomPlayer {
   chips?: number;
   /** Times this player bought back in after going broke. */
   buyIns?: number;
+  /** Running leftover-card score in 50 mode. */
+  fiftyScore?: number;
+  /** Points from the hand that just finished. */
+  lastFiftyPoints?: number;
 }
 
 export interface ChipPay {

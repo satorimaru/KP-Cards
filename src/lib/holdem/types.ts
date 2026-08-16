@@ -22,7 +22,8 @@ export type HoldemLogKind =
   | "turn"
   | "river"
   | "win"
-  | "split";
+  | "split"
+  | "show";
 
 export interface HoldemLogEntry {
   id: number;
@@ -46,6 +47,8 @@ export interface HoldemPlayer {
   allIn: boolean;
   sittingOut: boolean;
   isBot: boolean;
+  /** Cards tabled at showdown, or shown after winning a fold. */
+  shown: boolean;
 }
 
 export interface HandWinner {
@@ -73,6 +76,8 @@ export interface HoldemState {
   startStack: number;
   winners: HandWinner[];
   log: HoldemLogEntry[];
+  /** True when the pot was won because everyone else folded. */
+  uncontested: boolean;
 }
 
 export type HoldemError =

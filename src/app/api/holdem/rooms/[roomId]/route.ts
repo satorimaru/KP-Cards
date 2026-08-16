@@ -7,6 +7,7 @@ import {
   joinHoldemRoom,
   leaveHoldemRoom,
   rebuyHoldem,
+  showHoldem,
 } from "@/lib/holdem/rooms/service";
 import { toHoldemRoomView } from "@/lib/holdem/rooms/view";
 
@@ -56,6 +57,10 @@ export async function POST(request: Request, { params }: Params) {
       }
       case "act": {
         const room = await actHoldem(id, playerId, body.kind, body.raiseTo);
+        return NextResponse.json({ room: toHoldemRoomView(room, playerId) });
+      }
+      case "show": {
+        const room = await showHoldem(id, playerId);
         return NextResponse.json({ room: toHoldemRoomView(room, playerId) });
       }
       case "rebuy": {

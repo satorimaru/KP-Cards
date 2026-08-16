@@ -17,6 +17,8 @@ export interface GameRules {
   playAfterPass: boolean;
   /** Players hold chips and pay by place after each hand. */
   chips: boolean;
+  /** First out ends the hand. Leftover cards score. 50 points ends the match. */
+  fifty: boolean;
   /** Stack each player starts with, and the buy-in amount. */
   startChips: number;
 }
@@ -30,6 +32,7 @@ export const DEFAULT_RULES: GameRules = {
   uno: false,
   playAfterPass: false,
   chips: false,
+  fifty: false,
   startChips: 10,
 };
 
@@ -49,6 +52,7 @@ export function parseRules(input: unknown): GameRules {
     uno: raw.uno === true || raw.powerup === true,
     playAfterPass: raw.playAfterPass === true,
     chips: raw.chips === true,
+    fifty: raw.fifty === true,
     startChips: parseStartChips(raw.startChips ?? DEFAULT_START_CHIPS),
   };
 }

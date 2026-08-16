@@ -2,6 +2,7 @@
 
 import { teamOf } from "@/lib/rules";
 import type { RoomView } from "@/lib/rooms/types";
+import { FIFTY_LIMIT, fiftyMatchOver } from "@/lib/tienlen/fifty";
 import { useApp } from "./AppProviders";
 
 interface ResultModalProps {
@@ -29,6 +30,10 @@ export function ResultModal({
 }: ResultModalProps) {
   const { t } = useApp();
   const chipsOn = Boolean(room.rules?.chips);
+  const fiftyOn = Boolean(room.rules?.fifty);
+  const fiftyScores = room.players.map((p) => p.fiftyScore ?? 0);
+  const matchOver = fiftyOn && fiftyMatchOver(fiftyScores);
+  const lowScore = fiftyOn ? Math.min(...fiftyScores) : 0;
   const me = room.players.find((p) => p.id === playerId);
   const broke = chipsOn && (me?.chips ?? 0) <= 0;
   const ranked = room.winners
@@ -55,12 +60,14 @@ export function ResultModal({
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/55 p-3 sm:items-center">
       <div className="glass-panel w-full max-w-sm rounded-[1.75rem] p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <p className="text-center text-[11px] uppercase tracking-[0.2em] text-[var(--gold-dim)]">
-          {t("game.handOver")}
+          {matchOver ? t("fifty.matchOver") : t("game.handOver")}
         </p>
         <h2 className="mt-1 text-center font-[family-name:var(--font-display)] text-3xl">
-          {winningTeam
-            ? t("result.teamWin", { team: winningTeam })
-            : t("result.places")}
+          {matchOver
+            ? t("fifty.lowestWins")
+            : winningTeam
+              ? t("result.teamWin", { team: winningTeam })
+              : t("result.places")}
         </h2>
         <ol className="mt-5 space-y-2">
           {ranked.map((p, i) => (
@@ -85,6 +92,40 @@ export function ResultModal({
             </li>
           ))}
         </ol>
+        {fiftyOn && (
+          <ul className="mt-4 space-y-1.5">
+            {room.players
+              .slice()
+              .sort((a, b) => (a.fiftyScore ?? 0) - (b.fiftyScore ?? 0))
+              .map((p) => {
+                const delta = p.lastFiftyPoints ?? 0;
+                const score = p.fiftyScore ?? 0;
+                const champ = matchOver && score === lowScore;
+                return (
+                  <li
+                    key={p.id}
+                    className={[
+                      "flex items-center justify-between text-sm",
+                      champ ? "text-[var(--gold)]" : "text-[var(--ivory)]",
+                    ].join(" ")}
+                  >
+                    <span>
+                      {p.name}
+                      {p.id === playerId ? ` · ${t("result.you")}` : ""}
+                      {champ ? ` · ${t("result.first")}` : ""}
+                    </span>
+                    <span className="font-semibold tabular-nums">
+                      {delta > 0 && (
+                        <span className="mr-2 text-[#f0b4bd]">+{delta}</span>
+                      )}
+                      {score}
+                      {score >= FIFTY_LIMIT ? ` / ${FIFTY_LIMIT}` : ""}
+                    </span>
+                  </li>
+                );
+              })}
+          </ul>
+        )}
         {chipsOn && (
           <ul className="mt-4 space-y-1.5">
             {room.players
@@ -147,10 +188,16 @@ export function ResultModal({
             broke && onBuyIn ? "btn-ghost mt-2" : "btn-gold mt-6",
           ].join(" ")}
         >
-          {rematchLabel ?? t("result.lobby")}
+          {matchOver
+            ? t("fifty.newMatch")
+            : rematchLabel ?? t("result.lobby")}
         </button>
         <p className="mt-3 text-center text-xs text-[var(--mute)]">
-          {broke ? t("chips.broke") : rematchHint ?? t("result.lobbyHint")}
+          {broke
+            ? t("chips.broke")
+            : matchOver
+              ? t("fifty.newMatchHint")
+              : rematchHint ?? t("result.lobbyHint")}
         </p>
         {onMenu && (
           <button

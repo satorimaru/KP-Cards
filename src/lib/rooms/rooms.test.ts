@@ -265,4 +265,45 @@ describe("rooms", () => {
       { fromPlayerId: "chip3-b", toPlayerId: "chip3-host", amount: 2 },
     ]);
   });
+
+  it("ends a 50-mode hand on first out and scores leftover cards", async () => {
+    const created = await createRoom("fifty-host", "Host", 3, { fifty: true });
+    expect(created.players[0].fiftyScore).toBe(0);
+    await joinRoom(created.id, "fifty-a", "A");
+    await joinRoom(created.id, "fifty-b", "B");
+    await setReady(created.id, "fifty-host", true);
+    await setReady(created.id, "fifty-a", true);
+    await setReady(created.id, "fifty-b", true);
+    const started = await startGame(created.id, "fifty-host");
+    const host = started.players.find((p) => p.id === "fifty-host")!;
+    const a = started.players.find((p) => p.id === "fifty-a")!;
+    const b = started.players.find((p) => p.id === "fifty-b")!;
+    const lead = { rank: "3" as const, suit: "S" as const };
+    started.hands[host.id] = [lead];
+    started.hands[a.id] = [
+      { rank: "4", suit: "H" },
+      { rank: "5", suit: "H" },
+      { rank: "6", suit: "H" },
+    ];
+    started.hands[b.id] = [
+      { rank: "7", suit: "C" },
+      { rank: "8", suit: "C" },
+    ];
+    started.leadCard = lead;
+    started.currentPlayerId = host.id;
+    started.pile = [];
+    started.pileType = null;
+    await saveRoom(started);
+
+    const finished = await playCards(created.id, host.id, [lead]);
+    expect(finished.status).toBe("finished");
+    const after = Object.fromEntries(
+      finished.players.map((p) => [p.id, p]),
+    );
+    expect(after["fifty-host"].finishOrder).toBe(1);
+    expect(after["fifty-host"].fiftyScore).toBe(0);
+    expect(after["fifty-host"].lastFiftyPoints).toBe(0);
+    expect(after["fifty-a"].fiftyScore).toBe(3);
+    expect(after["fifty-b"].fiftyScore).toBe(2);
+  });
 });

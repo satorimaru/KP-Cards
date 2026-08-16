@@ -83,6 +83,7 @@ export function createTable(
     allIn: false,
     sittingOut: false,
     isBot: seat >= botsFrom,
+    shown: false,
   }));
   return {
     status: "waiting",
@@ -102,6 +103,7 @@ export function createTable(
     startStack,
     winners: [],
     log: [],
+    uncontested: false,
   };
 }
 
@@ -120,12 +122,14 @@ function resetHand(state: HoldemState): void {
     p.folded = p.stack <= 0;
     p.allIn = false;
     p.sittingOut = p.stack <= 0;
+    p.shown = false;
   }
   state.board = [];
   state.pot = 0;
   state.winners = [];
   state.street = "preflop";
   state.log = [];
+  state.uncontested = false;
 }
 
 export function dealHand(
@@ -255,7 +259,21 @@ function awardUncontested(state: HoldemState): HoldemState {
   state.pot = 0;
   state.toAct = null;
   state.status = "handOver";
+  state.uncontested = true;
+  winner.shown = false;
   return state;
+}
+
+export function showCards(state: HoldemState, seat: number): HoldemResult {
+  if (state.status !== "handOver" || !state.uncontested) {
+    return fail("err.illegal");
+  }
+  const p = state.players[seat];
+  if (!p || p.folded || p.shown) return fail("err.illegal");
+  if (!state.winners.some((w) => w.seats.includes(seat))) return fail("err.illegal");
+  p.shown = true;
+  pushLog(state, { seat, name: p.name, kind: "show" });
+  return { ok: true, state };
 }
 
 function buildPots(state: HoldemState): { amount: number; seats: number[] }[] {
@@ -339,6 +357,10 @@ function showdown(state: HoldemState): HoldemState {
   state.pot = 0;
   state.toAct = null;
   state.status = "handOver";
+  state.uncontested = false;
+  for (const p of state.players) {
+    p.shown = inHand(p);
+  }
   return state;
 }
 

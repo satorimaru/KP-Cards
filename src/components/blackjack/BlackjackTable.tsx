@@ -13,8 +13,10 @@ import {
   type BjState,
 } from "@/lib/blackjack/engine";
 import type { MessageKey } from "@/lib/i18n";
+import { playSfx, type SfxName } from "@/lib/sfx";
 import { useApp } from "../AppProviders";
 import { FeltStack } from "../FeltStack";
+import { useSfxWatch } from "../useSfx";
 
 interface BlackjackTableProps {
   state: BjState;
@@ -118,7 +120,7 @@ export function BlackjackTable({
   onRebuy,
   onMenu,
 }: BlackjackTableProps) {
-  const { t } = useApp();
+  const { t, sound } = useApp();
   const you = state.seats[youSeat];
   const yourTurn = state.toAct === youSeat;
   const hideHole = state.phase !== "settle";
@@ -127,6 +129,18 @@ export function BlackjackTable({
   const youHand = you?.hands[you.current] ?? you?.hands[0];
   const tight = others.length >= 4;
   const [dealLeft, setDealLeft] = useState(0);
+  const settleSfx: SfxName | null = (() => {
+    if (state.phase !== "settle") return null;
+    const yours = you ? seatResult(you, state.dealer) : null;
+    if (yours?.kind === "win" || yours?.kind === "blackjack") return "win";
+    if (yours?.kind === "push") return "check";
+    return "lose";
+  })();
+  useSfxWatch(`bj-phase|${state.phase}`, state.phase === "play" || state.phase === "insure" ? "deal" : settleSfx);
+  useSfxWatch(
+    `bj-hit|${youHand?.cards.length ?? 0}`,
+    state.phase === "play" && (youHand?.cards.length ?? 0) > 2 ? "play" : null,
+  );
 
   useEffect(() => {
     if (state.phase !== "betting" || state.dealAt == null) {
@@ -260,7 +274,10 @@ export function BlackjackTable({
                   "flex-1",
                   you?.hands[0]?.bet === n ? "btn-gold" : "btn-ghost",
                 ].join(" ")}
-                onClick={() => onBet(n)}
+                onClick={() => {
+                  if (sound) playSfx("chip");
+                  onBet(n);
+                }}
               >
                 {t("bj.bet", { n })}
               </button>
@@ -290,7 +307,15 @@ export function BlackjackTable({
             <button type="button" disabled={busy} className="btn-gold flex-1" onClick={onHit}>
               {t("bj.hit")}
             </button>
-            <button type="button" disabled={busy} className="btn-ghost flex-1" onClick={onStand}>
+            <button
+              type="button"
+              disabled={busy}
+              className="btn-ghost flex-1"
+              onClick={() => {
+                if (sound) playSfx("check");
+                onStand();
+              }}
+            >
               {t("bj.stand")}
             </button>
             {canDouble(state, youSeat) && (

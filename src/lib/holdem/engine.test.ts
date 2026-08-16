@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAction, createTable, dealHand, legalActions } from "./engine";
+import { applyAction, createTable, dealHand, legalActions, showCards } from "./engine";
 
 describe("holdem engine", () => {
   it("posts blinds and deals two cards each", () => {
@@ -25,6 +25,16 @@ describe("holdem engine", () => {
     expect(folded.state.status).toBe("handOver");
     expect(folded.state.winners[0].seats).toHaveLength(1);
     expect(folded.state.players.reduce((n, p) => n + p.stack, 0)).toBe(200);
+    expect(folded.state.uncontested).toBe(true);
+    const winner = folded.state.players.find((p) => !p.folded)!;
+    const foldedSeat = folded.state.players.find((p) => p.folded)!;
+    expect(winner.shown).toBe(false);
+    expect(foldedSeat.shown).toBe(false);
+    const shown = showCards(folded.state, winner.seat);
+    expect(shown.ok).toBe(true);
+    if (!shown.ok) return;
+    expect(shown.state.players[winner.seat].shown).toBe(true);
+    expect(showCards(shown.state, foldedSeat.seat).ok).toBe(false);
   });
 
   it("lets the big blind check when limped to", () => {

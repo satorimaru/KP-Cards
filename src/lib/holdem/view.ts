@@ -14,6 +14,7 @@ export interface HoldemSeatView {
   sittingOut: boolean;
   hole: Card[];
   holeCount: number;
+  shown: boolean;
 }
 
 export interface HoldemView {
@@ -32,10 +33,10 @@ export interface HoldemView {
   bb: number;
   startStack: number;
   log: HoldemLogEntry[];
+  uncontested: boolean;
 }
 
 export function toHoldemView(state: HoldemState, you: number): HoldemView {
-  const show = state.status === "handOver";
   return {
     status: state.status,
     street: state.street,
@@ -51,12 +52,13 @@ export function toHoldemView(state: HoldemState, you: number): HoldemView {
     bb: state.bb,
     startStack: state.startStack,
     log: state.log ?? [],
-    players: state.players.map((p) => seatView(p, you, show)),
+    uncontested: Boolean(state.uncontested),
+    players: state.players.map((p) => seatView(p, you)),
   };
 }
 
-function seatView(p: HoldemPlayer, you: number, show: boolean): HoldemSeatView {
-  const reveal = p.seat === you || show;
+function seatView(p: HoldemPlayer, you: number): HoldemSeatView {
+  const reveal = p.seat === you || p.shown;
   return {
     id: p.id,
     name: p.name,
@@ -68,6 +70,7 @@ function seatView(p: HoldemPlayer, you: number, show: boolean): HoldemSeatView {
     sittingOut: p.sittingOut,
     hole: reveal ? p.hole : [],
     holeCount: p.hole.length,
+    shown: Boolean(p.shown),
   };
 }
 
@@ -93,6 +96,7 @@ export function viewToState(view: HoldemView): HoldemState {
       allIn: p.allIn,
       sittingOut: p.sittingOut,
       isBot: false,
+      shown: Boolean(p.shown),
     })),
     dealerSeat: view.dealerSeat,
     toAct: view.toAct,
@@ -109,6 +113,7 @@ export function viewToState(view: HoldemView): HoldemState {
     startStack: view.startStack,
     winners: view.winners,
     log: view.log ?? [],
+    uncontested: Boolean(view.uncontested),
   };
 }
 

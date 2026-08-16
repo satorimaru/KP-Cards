@@ -11,6 +11,8 @@ import type {
 import type { MessageKey } from "@/lib/i18n";
 import { useApp } from "../AppProviders";
 import { FeltStack } from "../FeltStack";
+import { useSfxWatch } from "../useSfx";
+import type { SfxName } from "@/lib/sfx";
 
 interface HoldemTableProps {
   state: HoldemState;
@@ -19,6 +21,7 @@ interface HoldemTableProps {
   onAct: (kind: HoldemActionKind, raiseTo?: number) => void;
   onDeal: () => void;
   onRebuy: () => void;
+  onShow?: () => void;
   onMenu?: () => void;
 }
 
@@ -135,6 +138,7 @@ export function HoldemTable({
   onAct,
   onDeal,
   onRebuy,
+  onShow,
   onMenu,
 }: HoldemTableProps) {
   const { t } = useApp();
@@ -152,6 +156,35 @@ export function HoldemTable({
     return state.winners.map((w) => formatWinner(w, state, t)).join(" · ");
   }, [state, t]);
   const lastLog = (state.log ?? []).at(-1);
+  const canShow = Boolean(
+    onShow &&
+      you &&
+      !you.shown &&
+      state.status === "handOver" &&
+      state.uncontested &&
+      state.winners.some((w) => w.seats.includes(youSeat)),
+  );
+  const logSfx: SfxName | null = !lastLog
+    ? null
+    : lastLog.kind === "fold"
+      ? "fold"
+      : lastLog.kind === "check"
+        ? "check"
+        : lastLog.kind === "flop" ||
+            lastLog.kind === "turn" ||
+            lastLog.kind === "river"
+          ? "deal"
+          : lastLog.kind === "win" || lastLog.kind === "split"
+            ? "win"
+            : lastLog.kind === "sb" ||
+                lastLog.kind === "bb" ||
+                lastLog.kind === "call" ||
+                lastLog.kind === "bet" ||
+                lastLog.kind === "raise" ||
+                lastLog.kind === "allin"
+              ? "chip"
+              : null;
+  useSfxWatch(lastLog ? `hl|${lastLog.id}` : "", logSfx);
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -161,7 +194,7 @@ export function HoldemTable({
           const isYou = p.seat === youSeat;
           const slot = slotOf(off, n, isYou);
           const turn = state.toAct === p.seat;
-          const showFace = (isYou || state.status === "handOver") && p.hole.length > 0;
+          const showFace = isYou || p.shown;
           const dealt =
             !p.sittingOut &&
             (p.hole.length > 0 ||
@@ -264,6 +297,11 @@ export function HoldemTable({
       <div className="mt-1.5 shrink-0 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
         {state.status !== "playing" ? (
           <div className="flex gap-2">
+            {canShow && onShow && (
+              <button type="button" className="btn-ghost flex-1" onClick={onShow}>
+                {t("poker.show")}
+              </button>
+            )}
             {you && you.stack <= 0 && (
               <button type="button" className="btn-ghost flex-1" onClick={onRebuy}>
                 {t("poker.rebuy")}
@@ -371,6 +409,7 @@ const LOG_KEY: Record<HoldemLogEntry["kind"], MessageKey> = {
   river: "poker.log.river",
   win: "poker.log.win",
   split: "poker.log.split",
+  show: "poker.log.show",
 };
 
 function formatLog(

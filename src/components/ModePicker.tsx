@@ -30,6 +30,11 @@ const MODES = [
     title: "mode.chips",
     hint: "mode.chipsHint",
   },
+  {
+    key: "fifty" as const,
+    title: "mode.fifty",
+    hint: "mode.fiftyHint",
+  },
 ] as const;
 
 interface ModePickerProps {
@@ -50,7 +55,12 @@ export function ModePicker({ rules, onChange, disabled }: ModePickerProps) {
             key={mode.key}
             type="button"
             disabled={disabled}
-            onClick={() => onChange({ ...rules, [mode.key]: !on })}
+            onClick={() => {
+              const next = { ...rules, [mode.key]: !on };
+              if (mode.key === "fifty" && !on) next.chips = false;
+              if (mode.key === "chips" && !on) next.fifty = false;
+              onChange(next);
+            }}
             className={[
               "rounded-2xl px-3 py-2.5 text-left",
               on

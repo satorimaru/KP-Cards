@@ -113,6 +113,29 @@ describe("play and pass", () => {
     expect(state.currentSeat).toBe(0);
   });
 
+  it("ends a 50-mode hand as soon as the first player is out", () => {
+    let state = handStateFromHands(
+      [
+        [{ rank: "3", suit: "S" }],
+        [
+          { rank: "4", suit: "H" },
+          { rank: "5", suit: "H" },
+          { rank: "6", suit: "H" },
+        ],
+        [
+          { rank: "7", suit: "C" },
+          { rank: "8", suit: "C" },
+        ],
+      ],
+      { fifty: true },
+    );
+    state = applyPlay(state, 0, [{ rank: "3", suit: "S" }]);
+    expect(state.finishOrder[0]).toBe(0);
+    expect(state.finishOrder).toEqual([0, 2, 1]);
+    expect(state.hands[1]).toHaveLength(3);
+    expect(state.hands[2]).toHaveLength(2);
+  });
+
   it("finishes the hand when only one player has cards left", () => {
     let state = handStateFromHands([
       [c("3", "S")],

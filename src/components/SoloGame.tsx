@@ -20,6 +20,7 @@ import type { ChipPay, RoomEvent } from "@/lib/rooms/types";
 import { getSettings } from "@/lib/settings";
 import { parseRules } from "@/lib/rules";
 import { settleChips } from "@/lib/tienlen/chips";
+import { fiftyMatchOver, leftoverPoints } from "@/lib/tienlen/fifty";
 import {
   HUMAN_ID,
   clampBotCount,
@@ -42,6 +43,9 @@ interface SoloSnapshot {
   buyIns: number[];
   lastChipPays: ChipPay[];
   chipsSettled: boolean;
+  fifty: number[];
+  lastFiftyPoints: number[];
+  fiftySettled: boolean;
 }
 
 function deal(
@@ -74,6 +78,17 @@ function deal(
       }
     }
   }
+  const keepFifty = Boolean(
+    parsed.fifty &&
+      prev &&
+      parseRules(prev.hand.rules).fifty &&
+      prev.fifty.length === n &&
+      !fiftyMatchOver(prev.fifty),
+  );
+  const fifty =
+    keepFifty && prev
+      ? [...prev.fifty]
+      : Array.from({ length: n }, () => 0);
   return {
     hand: createHandState(n, Math.random, rules),
     lastEvent: { kind: "start" },
@@ -82,25 +97,39 @@ function deal(
     buyIns,
     lastChipPays: [],
     chipsSettled: false,
+    fifty,
+    lastFiftyPoints: Array.from({ length: n }, () => 0),
+    fiftySettled: false,
   };
 }
 
-function finishChips(snap: SoloSnapshot): SoloSnapshot {
+function finishHand(snap: SoloSnapshot): SoloSnapshot {
   const parsed = parseRules(snap.hand.rules);
-  if (!parsed.chips || !isGameFinished(snap.hand) || snap.chipsSettled) {
-    return snap;
+  if (!isGameFinished(snap.hand)) return snap;
+  let next = snap;
+  if (parsed.chips && !next.chipsSettled) {
+    const settled = settleChips(next.chips, next.hand.finishOrder);
+    next = {
+      ...next,
+      chips: settled.chips,
+      chipsSettled: true,
+      lastChipPays: settled.pays.map((pay) => ({
+        fromPlayerId: playerIdForSeat(pay.fromSeat),
+        toPlayerId: playerIdForSeat(pay.toSeat),
+        amount: pay.amount,
+      })),
+    };
   }
-  const settled = settleChips(snap.chips, snap.hand.finishOrder);
-  return {
-    ...snap,
-    chips: settled.chips,
-    chipsSettled: true,
-    lastChipPays: settled.pays.map((pay) => ({
-      fromPlayerId: playerIdForSeat(pay.fromSeat),
-      toPlayerId: playerIdForSeat(pay.toSeat),
-      amount: pay.amount,
-    })),
-  };
+  if (parsed.fifty && !next.fiftySettled) {
+    const points = leftoverPoints(next.hand.hands, next.hand.finishOrder);
+    next = {
+      ...next,
+      fifty: next.fifty.map((n, i) => n + (points[i] ?? 0)),
+      lastFiftyPoints: points,
+      fiftySettled: true,
+    };
+  }
+  return next;
 }
 
 interface SoloGameProps {
@@ -136,7 +165,7 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
         const playerId = playerIdForSeat(seat);
 
         if (action.type === "pass") {
-          return finishChips({
+          return finishHand({
             ...prev,
             hand: applyPass(current, seat),
             lastEvent: { kind: "pass", playerId },
@@ -147,7 +176,7 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
         const check = validatePlay(current, seat, action.cards);
         if (!check.ok) {
           if (!current.pile) return prev;
-          return finishChips({
+          return finishHand({
             ...prev,
             hand: applyPass(current, seat),
             lastEvent: { kind: "pass", playerId },
@@ -156,7 +185,7 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
         }
 
         const next = applyPlay(current, seat, action.cards);
-        return finishChips({
+        return finishHand({
           ...prev,
           hand: next,
           lastEvent: makePlayEvent(
@@ -181,6 +210,8 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
     chips: solo.chips,
     buyIns: solo.buyIns,
     lastChipPays: solo.lastChipPays,
+    fifty: solo.fifty,
+    lastFiftyPoints: solo.lastFiftyPoints,
   });
   const botTurn = !isGameFinished(solo.hand) && solo.hand.currentSeat !== 0;
 
@@ -193,7 +224,7 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
     setError(null);
     const next = applyPlay(solo.hand, 0, cards);
     setSolo((prev) =>
-      finishChips({
+      finishHand({
         ...prev,
         hand: next,
         lastEvent: makePlayEvent(
@@ -218,7 +249,7 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
     }
     setError(null);
     setSolo((prev) =>
-      finishChips({
+      finishHand({
         ...prev,
         hand: applyPass(solo.hand, 0),
         lastEvent: { kind: "pass", playerId: HUMAN_ID },
@@ -236,7 +267,7 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
       const check = validatePass(state, 0);
       if (!check.ok) return;
       setSolo((prev) =>
-        finishChips({
+        finishHand({
           ...prev,
           hand: applyPass(state, 0),
           lastEvent: { kind: "pass", playerId: HUMAN_ID },
@@ -249,7 +280,7 @@ export function SoloGame({ botCount, playerName }: SoloGameProps) {
     if (!check.ok) return;
     const next = applyPlay(state, 0, action.cards);
     setSolo((prev) =>
-      finishChips({
+      finishHand({
         ...prev,
         hand: next,
         lastEvent: makePlayEvent(

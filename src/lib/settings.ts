@@ -6,11 +6,13 @@ const KEY = "tienlen_settings";
 export interface AppSettings {
   locale: Locale;
   rules: GameRules;
+  sound: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   locale: "en",
   rules: { ...DEFAULT_RULES },
+  sound: true,
 };
 
 function parseSettings(raw: unknown): AppSettings {
@@ -19,6 +21,7 @@ function parseSettings(raw: unknown): AppSettings {
   return {
     locale: isLocale(data.locale) ? data.locale : "en",
     rules: parseRules(data.rules),
+    sound: data.sound !== false,
   };
 }
 
@@ -46,5 +49,6 @@ export function updateSettings(patch: Partial<AppSettings>): AppSettings {
   return saveSettings({
     locale: patch.locale ?? prev.locale,
     rules: patch.rules ? parseRules(patch.rules) : prev.rules,
+    sound: patch.sound ?? prev.sound,
   });
 }

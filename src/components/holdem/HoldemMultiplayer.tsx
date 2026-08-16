@@ -190,6 +190,11 @@ export function HoldemMultiplayer({
               postHoldemRoom(roomId, { action: "deal", playerId }),
             );
           }}
+          onShow={() => {
+            void run(() =>
+              postHoldemRoom(roomId, { action: "show", playerId }),
+            );
+          }}
           onRebuy={() => {
             void run(() =>
               postHoldemRoom(roomId, { action: "rebuy", playerId }),

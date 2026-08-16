@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { applyBotAction } from "@/lib/holdem/bot";
-import { applyAction, createTable, dealHand, rebuy } from "@/lib/holdem/engine";
+import { applyAction, createTable, dealHand, rebuy, showCards } from "@/lib/holdem/engine";
 import type { HoldemActionKind, HoldemState } from "@/lib/holdem/types";
 import { BOT_NAMES } from "@/lib/solo";
 import { useApp } from "../AppProviders";
@@ -31,6 +31,22 @@ export function HoldemSolo({
   );
 
   useEffect(() => {
+    if (state.status === "handOver" && state.uncontested) {
+      const seat = state.winners[0]?.seats[0];
+      const bot = seat != null ? state.players[seat] : null;
+      if (!bot?.isBot || bot.shown) return;
+      const hole = bot.hole;
+      const pair = hole.length === 2 && hole[0].rank === hole[1].rank;
+      const paint = hole.some((c) => c.rank === "A" || c.rank === "K");
+      if (!pair && !paint) return;
+      const id = window.setTimeout(() => {
+        setState((prev) => {
+          const next = showCards(structuredClone(prev), bot.seat);
+          return next.ok ? next.state : prev;
+        });
+      }, 600);
+      return () => window.clearTimeout(id);
+    }
     if (state.status !== "playing" || state.toAct == null) return;
     const actor = state.players[state.toAct];
     if (!actor?.isBot) return;
@@ -72,6 +88,12 @@ export function HoldemSolo({
         onDeal={() => {
           setState((prev) => {
             const next = dealHand(structuredClone(prev));
+            return next.ok ? next.state : prev;
+          });
+        }}
+        onShow={() => {
+          setState((prev) => {
+            const next = showCards(structuredClone(prev), 0);
             return next.ok ? next.state : prev;
           });
         }}

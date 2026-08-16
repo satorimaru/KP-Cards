@@ -18,6 +18,7 @@ import {
 import { useKeyboardInset } from "@/lib/client";
 import { parseRules, type GameRules } from "@/lib/rules";
 import { getSettings, updateSettings } from "@/lib/settings";
+import { armSfxUnlock } from "@/lib/sfx";
 
 type Vars = Record<string, string | number>;
 
@@ -26,6 +27,8 @@ interface AppContextValue {
   setLocale: (locale: Locale) => void;
   rules: GameRules;
   setRules: (rules: GameRules) => void;
+  sound: boolean;
+  setSound: (sound: boolean) => void;
   t: (key: MessageKey, vars?: Vars) => string;
   te: (message: string) => string;
 }
@@ -40,12 +43,15 @@ export function AppProviders({ children }: { children: ReactNode }) {
   const [rules, setRulesState] = useState<GameRules>(() =>
     typeof window === "undefined" ? parseRules(undefined) : getSettings().rules,
   );
+  const [sound, setSoundState] = useState(true);
 
   useEffect(() => {
+    armSfxUnlock();
     const apply = () => {
       const next = getSettings();
       setLocaleState(next.locale);
       setRulesState(next.rules);
+      setSoundState(next.sound);
       document.documentElement.lang = next.locale;
     };
     apply();
@@ -65,6 +71,10 @@ export function AppProviders({ children }: { children: ReactNode }) {
     updateSettings({ rules: parseRules(next) });
   }, []);
 
+  const setSound = useCallback((next: boolean) => {
+    updateSettings({ sound: next });
+  }, []);
+
   const t = useCallback(
     (key: MessageKey, vars?: Vars) => translate(locale, key, vars),
     [locale],
@@ -75,8 +85,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ locale, setLocale, rules, setRules, t, te }),
-    [locale, setLocale, rules, setRules, t, te],
+    () => ({ locale, setLocale, rules, setRules, sound, setSound, t, te }),
+    [locale, setLocale, rules, setRules, sound, setSound, t, te],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

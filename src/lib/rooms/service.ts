@@ -16,6 +16,7 @@ import { deleteRoom, getRoom, saveRoom, updateRoom, withRoomLock } from "./store
 import { chooseBotAction } from "@/lib/tienlen/bot";
 import { BLITZ_MS, parseRules, type GameRules } from "@/lib/rules";
 import { settleChips } from "@/lib/tienlen/chips";
+import { fiftyMatchOver, leftoverPoints } from "@/lib/tienlen/fifty";
 import { makePlayEvent } from "./playEvent";
 import { MAX_CHAT_TEXT, type Room, type RoomPlayer } from "./types";
 
@@ -41,6 +42,8 @@ function makePlayer(id: string, name: string, seat: number): RoomPlayer {
     satOut: false,
     chips: undefined,
     buyIns: 0,
+    fiftyScore: undefined,
+    lastFiftyPoints: undefined,
   };
 }
 
@@ -52,6 +55,28 @@ function seedChips(room: Room, force = false): void {
       p.chips = rules.startChips;
       if (p.buyIns == null) p.buyIns = 0;
     }
+  }
+}
+
+function seedFifty(room: Room, force = false): void {
+  const rules = parseRules(room.rules);
+  if (!rules.fifty) return;
+  for (const p of room.players) {
+    if (force || p.fiftyScore == null) {
+      p.fiftyScore = 0;
+      p.lastFiftyPoints = 0;
+    }
+  }
+}
+
+function applyFiftySettlement(room: Room, state: HandState): void {
+  const rules = parseRules(room.rules);
+  if (!rules.fifty) return;
+  const points = leftoverPoints(state.hands, state.finishOrder);
+  for (const p of room.players) {
+    const delta = points[p.seat] ?? 0;
+    p.fiftyScore = (p.fiftyScore ?? 0) + delta;
+    p.lastFiftyPoints = delta;
   }
 }
 
@@ -171,6 +196,7 @@ function applyHandStateToRoom(room: Room, state: HandState): void {
 
   if (isGameFinished(state) && room.status !== "finished") {
     applyChipSettlement(room, state.finishOrder);
+    applyFiftySettlement(room, state);
     room.status = "finished";
   } else if (isGameFinished(state)) {
     room.status = "finished";
@@ -280,6 +306,7 @@ export async function createRoom(
     lastChipPays: [],
   };
   seedChips(room);
+  seedFifty(room);
 
   await saveRoom(room);
   return room;
@@ -331,6 +358,7 @@ export async function joinRoom(
       makePlayer(playerId, playerName || "Guest", room.players.length),
     );
     seedChips(room);
+    seedFifty(room);
     room.lastEvent = { kind: "join", playerId };
   });
 }
@@ -434,6 +462,7 @@ export async function startGame(
         throw new RoomError("err.needChips", 400);
       }
     }
+    if (rules.fifty) seedFifty(room);
 
     reseat(room);
     const state = createHandState(
@@ -445,6 +474,9 @@ export async function startGame(
     room.startedAt = now();
     room.winners = [];
     room.lastChipPays = [];
+    if (rules.fifty) {
+      for (const p of room.players) p.lastFiftyPoints = 0;
+    }
     room.turnVersion = 0;
     room.hands = {};
     room.lastEvent = { kind: "start" };
@@ -588,6 +620,16 @@ export async function rematchRoom(
       p.finishOrder = null;
       p.satOut = false;
     }
+    const rules = parseRules(room.rules);
+    if (rules.fifty) {
+      const scores = room.players.map((p) => p.fiftyScore ?? 0);
+      if (fiftyMatchOver(scores)) {
+        for (const p of room.players) {
+          p.fiftyScore = 0;
+          p.lastFiftyPoints = 0;
+        }
+      }
+    }
   });
 }
 
@@ -664,6 +706,13 @@ export async function setRoomRules(
     room.rules = next;
     if (next.siege) room.maxPlayers = 4;
     if (next.chips) seedChips(room, !played);
+    if (next.fifty) seedFifty(room, !room.players.some((p) => p.fiftyScore != null));
+    if (!next.fifty) {
+      for (const p of room.players) {
+        p.fiftyScore = undefined;
+        p.lastFiftyPoints = undefined;
+      }
+    }
   });
 }
 

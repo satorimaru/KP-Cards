@@ -69,7 +69,7 @@ export function SettingsSheet({
   rulesLocked,
   houseRules = true,
 }: SettingsSheetProps) {
-  const { t } = useApp();
+  const { t, sound, setSound } = useApp();
   if (!open) return null;
 
   return (
@@ -105,6 +105,18 @@ export function SettingsSheet({
         </p>
         <div className="mb-5">
           <LangToggle />
+        </div>
+
+        <p className="mb-2 text-[11px] uppercase tracking-[0.16em] text-[var(--gold-dim)]">
+          {t("settings.sound")}
+        </p>
+        <div className="mb-5">
+          <RuleToggle
+            on={sound}
+            title={t("settings.sound")}
+            hint={t("settings.soundHint")}
+            onToggle={() => setSound(!sound)}
+          />
         </div>
 
         {houseRules && (

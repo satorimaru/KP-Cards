@@ -24,6 +24,8 @@ export function handToRoomView(
     chips?: number[];
     buyIns?: number[];
     lastChipPays?: RoomView["lastChipPays"];
+    fifty?: number[];
+    lastFiftyPoints?: number[];
   },
 ): RoomView {
   const players = names.map((name, seat) => {
@@ -39,6 +41,8 @@ export function handToRoomView(
       satOut: (state.satOut ?? []).includes(seat),
       chips: extras?.chips?.[seat],
       buyIns: extras?.buyIns?.[seat] ?? 0,
+      fiftyScore: extras?.fifty?.[seat],
+      lastFiftyPoints: extras?.lastFiftyPoints?.[seat],
     };
   });
 
